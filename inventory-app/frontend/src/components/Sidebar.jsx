@@ -1,11 +1,19 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { MdOutlineInventory2 } from "react-icons/md";
 import { GiExpense } from "react-icons/gi";
 import { MdSummarize } from "react-icons/md";
 import { IoLogOutOutline } from "react-icons/io5";
 import { GoHome } from "react-icons/go";
 import { CgCopy } from "react-icons/cg";
+import { FaSitemap } from "react-icons/fa6";
 function Sidebar() {
+  const navigate=useNavigate()
+
+  const handleNavigate=(page)=>{
+    navigate(page)
+  }
+
   return (
     <aside className='sidebar'>
         <div className='logo_holder'>
@@ -13,12 +21,13 @@ function Sidebar() {
         </div>
         <div className='btns_section'>
             <div className='btns_list'>
-                <button className='nav_btn'><GoHome className='nav_icon'/></button>
-                <button className='nav_btn'><GiExpense  className='nav_icon'/></button>
-                <button  className='nav_btn'><CgCopy  className='nav_icon'/></button>
-                <button  className='nav_btn'><MdSummarize  className='nav_icon'/></button>
+                <button className='nav_btn' onClick={()=>handleNavigate("/dashboard")}><GoHome className='nav_icon'/></button>
+                <button className='nav_btn'  onClick={()=>handleNavigate("/consolidated-items")}><FaSitemap  className='nav_icon'/></button>
+                <button className='nav_btn'  onClick={()=>handleNavigate("/expendable-items")}><GiExpense  className='nav_icon'/></button>
+                <button  className='nav_btn'  onClick={()=>handleNavigate("/non-expendable-items-gf")}><CgCopy  className='nav_icon'/></button>
+                <button  className='nav_btn' onClick={()=>handleNavigate("/non-expendable-items-sf")}><MdSummarize  className='nav_icon'/></button>
             </div>
-            <button className='btn_2'><IoLogOutOutline  className='nav_icon_1'/></button>
+            <button className='nav_btn' onClick={()=>handleNavigate("/")}><IoLogOutOutline  className='nav_icon'/></button>
         </div>
     </aside>
   )

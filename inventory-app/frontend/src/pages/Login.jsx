@@ -1,4 +1,5 @@
 import React,{useState} from 'react'
+import { Link,useNavigate } from 'react-router-dom'
 import { FaRegCircleUser } from "react-icons/fa6";
 import { MdEmail } from "react-icons/md";
 import { RiLockPasswordLine } from "react-icons/ri";
@@ -6,11 +7,13 @@ import { FaEye } from "react-icons/fa";
 import { FaEyeSlash } from "react-icons/fa";
 function Login() {
     const [password,setPassword]=useState(true)
-
+    const navigate=useNavigate()
     const handlePassword=(value)=>{
         setPassword(value)
     }
-
+    const handleLogin=()=>{
+        navigate("/dashboard")
+    }
   
     return (
     <div className='page_container'>
@@ -30,7 +33,7 @@ function Login() {
                     <input type={(password)?"password":"text"} className='input_box space-mono-regular' placeholder='Password'/>
                     {(password)?<button className='btn-1' onClick={()=>handlePassword(false)}><FaEye className='icon_2'/></button>:<button  className='btn-1' onClick={()=>handlePassword(true)}><FaEyeSlash className='icon_2'/></button>}
                 </div>
-                <button className='submit_btn space-mono-regular'>Submit</button>
+                <button className='submit_btn space-mono-regular' onClick={handleLogin}>Submit</button>
             </div>
         </div>
         <footer className='footer_section'>
