@@ -3,6 +3,10 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import User
 from app.schemas import UserCreate, UserLogin, Token
+from app.core.config import (
+    SECRET_KEY, REFRESH_SECRET_KEY, ALGORITHM,
+    ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
+)
 from app.core.security import (
     hash_password, verify_password,
     create_access_token, create_refresh_token,
