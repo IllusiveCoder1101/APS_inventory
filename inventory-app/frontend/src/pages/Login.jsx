@@ -5,18 +5,27 @@ import { MdEmail } from "react-icons/md";
 import { RiLockPasswordLine } from "react-icons/ri";
 import { FaEye } from "react-icons/fa";
 import { FaEyeSlash } from "react-icons/fa";
+import Status_model from '../components/Status_model';
 function Login() {
     const [password,setPassword]=useState(true)
+    const [status,setStatus]=useState({"type":"","msg":""})
+
     const navigate=useNavigate()
     const handlePassword=(value)=>{
         setPassword(value)
     }
     const handleLogin=()=>{
-        navigate("/dashboard")
+        setStatus({"type":"success","msg":"Successfully Logged In!"})
+        setTimeout(()=>{
+            setStatus({"type":"","msg":""})
+            navigate("/dashboard")
+        },2000)
+        
     }
   
     return (
     <div className='page_container'>
+        <Status_model msg={status['msg']} type={status['type']}/>
         <nav className='nav-bar'>
             <h3 className='logo red-hat-display-bold'>INVENTORY</h3>
         </nav>

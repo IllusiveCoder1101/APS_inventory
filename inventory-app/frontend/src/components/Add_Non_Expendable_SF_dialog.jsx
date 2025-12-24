@@ -3,7 +3,7 @@ import React from 'react'
 import { RxCrossCircled } from "react-icons/rx";
 import { PiMicrosoftExcelLogoFill } from "react-icons/pi";
 
-function Add_Non_Expendable_SF_dialog({dialog_status,handle_add_dialog}) {
+function Add_Non_Expendable_SF_dialog({dialog_status,handle_add_dialog,handle_submit}) {
   return (
     <>
      {
@@ -29,7 +29,7 @@ function Add_Non_Expendable_SF_dialog({dialog_status,handle_add_dialog}) {
             </div>
             <div className="submit_btn_holder">
                 <button className="submit_btn_1" onClick={()=>handle_add_dialog()}><span>Cancel</span></button>
-                <button className="submit_btn">Submit</button>
+                <button className="submit_btn" onClick={handle_submit}>Submit</button>
             </div>
         </div>
     </div>:<></>

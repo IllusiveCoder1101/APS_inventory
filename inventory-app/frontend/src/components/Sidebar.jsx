@@ -21,11 +21,11 @@ function Sidebar() {
         </div>
         <div className='btns_section'>
             <div className='btns_list'>
-                <button className='nav_btn' onClick={()=>handleNavigate("/dashboard")}><GoHome className='nav_icon'/></button>
-                <button className='nav_btn'  onClick={()=>handleNavigate("/consolidated-items")}><FaSitemap  className='nav_icon'/></button>
-                <button className='nav_btn'  onClick={()=>handleNavigate("/expendable-items")}><GiExpense  className='nav_icon'/></button>
-                <button  className='nav_btn'  onClick={()=>handleNavigate("/non-expendable-items-gf")}><CgCopy  className='nav_icon'/></button>
-                <button  className='nav_btn' onClick={()=>handleNavigate("/non-expendable-items-sf")}><MdSummarize  className='nav_icon'/></button>
+                <button title='Home' className='nav_btn' onClick={()=>handleNavigate("/dashboard")}><GoHome className='nav_icon'/></button>
+                <button title='Consolidated Items' className='nav_btn'  onClick={()=>handleNavigate("/consolidated-items")}><FaSitemap  className='nav_icon'/></button>
+                <button title="Expendable Items" className='nav_btn'  onClick={()=>handleNavigate("/expendable-items")}><GiExpense  className='nav_icon'/></button>
+                <button title='Non-Expendable Items Gov' className='nav_btn'  onClick={()=>handleNavigate("/non-expendable-items-gf")}><CgCopy  className='nav_icon'/></button>
+                <button title='Non Expendable Items School' className='nav_btn' onClick={()=>handleNavigate("/non-expendable-items-sf")}><MdSummarize  className='nav_icon'/></button>
             </div>
             <button className='nav_btn' onClick={()=>handleNavigate("/")}><IoLogOutOutline  className='nav_icon'/></button>
         </div>

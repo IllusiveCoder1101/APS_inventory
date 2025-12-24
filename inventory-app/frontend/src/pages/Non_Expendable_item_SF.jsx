@@ -2,13 +2,30 @@ import React,{useState} from 'react'
 import Sidebar from '../components/Sidebar'
 import { MdDelete } from "react-icons/md";
 import { MdEdit } from "react-icons/md";
-
+import Status_model from '../components/Status_model';
+import { useNavigate } from 'react-router-dom';
 
 function Non_Expendable_Item_SF() {
-   
+    const [status,setStatus]=useState({"type":"","msg":""})
+    const navigate=useNavigate()
+
+    const handleDelete=()=>{
+        setStatus({"type":"success","msg":"Successfully Deleted Item!"})
+        setTimeout(()=>{
+            setStatus({"type":"","msg":""})
+            navigate("/non-expendable-items-sf")
+        },2000)
+    }
+
+    const handleEdit=()=>{
+        setStatus({"type":"success","msg":"Successfully Edited Item!"})
+        setTimeout(()=>{
+            setStatus({"type":"","msg":""})
+        },2000)
+    }
     return (
     <div className='page_container_1'>
-        <Edit_Expendable_dialog dialog_status={editDialog} handle_edit_dialog={handle_edit_dialog}/>
+        <Status_model msg={status['msg']} type={status['type']}/>
         <Sidebar/>
         <div className='main_section'>
             
@@ -98,8 +115,8 @@ function Non_Expendable_Item_SF() {
                     </div>
                 </div>
                 <div className="btn_section">
-                    <button className='action_btn_1 space-mono-regular'><MdDelete className='btn_icon'/> Delete</button>
-                    <button className='action_btn_1 space-mono-regular'><MdEdit  className='btn_icon'/> Edit</button>
+                    <button className='action_btn_1 space-mono-regular' onClick={handleDelete}><MdDelete className='btn_icon'/> Delete</button>
+                    <button className='action_btn_1 space-mono-regular' onClick={handleEdit}><MdEdit  className='btn_icon'/> Edit</button>
                 </div>
             </div>
         </div>
