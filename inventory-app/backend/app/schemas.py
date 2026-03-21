@@ -1,6 +1,9 @@
 from pydantic import BaseModel
 from uuid import UUID
 from datetime import date
+
+
+
 class UserCreate(BaseModel):
     email: str
     password: str
@@ -19,18 +22,15 @@ class DeleteItems(BaseModel):
 class ExpendableItem(BaseModel):
  
     items: str | None = None
-    appendix: str | None = None
     remarks: str | None = None
 
 
 class ExpendableItemsList(BaseModel):
     ser_no: int
     items: str
-    category_appendix: str
     qty_prev_month: int
     purchase_curr_month: int
     utilized_curr_month: int
-    final_balance: int
     remarks: str | None = None
 
 
@@ -51,6 +51,7 @@ class NonExpendableItem(BaseModel):
     remarks: str | None = None
 
 
+
 class NonExpendableItemsList(BaseModel):
     ser_no: int
     lp_no: int
@@ -68,17 +69,50 @@ class NonExpendableItemsList(BaseModel):
     remarks: str | None = None
 
 
-class ExpendableIssue(BaseModel):
-    rv_iv: str | None = None
-    category_id: int | None =None
-    whom_id_issue: str | None = None
-    qty_received: int | None = None
-    qty_issued: int | None = None
+class NonExpendableRemarks(BaseModel):
+    qty:int
+    qty_type:str
+    
+
+
+class ConsolidatedItemGet(BaseModel):
+    property_head: str
+    appendix: str
+    fund_details: str
+    prev_year_value: float
+    prev_year_purchase : float
+    unsv_value: float
+    serv_value: float
+    dep_value: float
+
+class ConsolidatedItemEdit(BaseModel):
+    property_head: str | None = None
+    appendix: str | None = None
+    fund_details: str | None = None
+
+
+class ConsolidatedItemsGet(BaseModel):
+    property_head: str
+    appendix: str
+    fund_details: str
+    dep_value: float
+
+class ConsolidatedAppendixList(BaseModel):
+    appendix_list: list[str]
+
+
+class ExpendableIssueGet(BaseModel):
+    ser_no: int
+    rv_iv: str 
+    date: date
+    category_id: int 
+    whom_id_issue: str 
+    qty_received: int 
+    qty_issued: int 
     remarks: str | None = None
 
 
-
-class ExpendableIssueList(BaseModel):
+class ExpendableIssueCreate(BaseModel):
     ser_no: int
     date: date
     rv_iv: str
@@ -88,9 +122,12 @@ class ExpendableIssueList(BaseModel):
     qty_issued: int
     remarks: str | None = None
 
-
-
-
+class ExpendableIssueEdit(BaseModel):
+    rv_iv: str | None = None
+    whom_id_issue: str | None = None
+    qty_received: int | None = None
+    qty_issued: int | None = None
+    remarks: str | None = None
 
 class DefaultResponse(BaseModel):
     msg: str

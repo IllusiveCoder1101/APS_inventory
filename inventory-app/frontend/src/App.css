@@ -320,7 +320,7 @@
   gap:2em;
 }
 .stats_box,.graph_1,.graph_2,.graph_3,.items_section{
-  width:20em;
+  width:23%;
   height:11em;
   border-radius: 0.5em;
   background:linear-gradient(135deg, var(--surface-color-) , var(--background-color-) 90%);
@@ -359,19 +359,19 @@
   gap:1em;
 }
 .graph_1{
-  width:60%;
-  max-width: 50em;
-  height:30em;
+  width:55%;
+  
+  height:35em;
 }
 .graph_2{
-  width:40%;
-  max-width:35em;
-  height:30em;
+  width:42%;
+  
+  height:35em;
 }
 .graph_3{
-  width:33%;
-  max-width:28em;
-  height:20em;
+  width:32%;
+  
+  height:27em;
 }
 .items_section{
   width:97%;
@@ -663,7 +663,7 @@
 .error_type{
   color:var(--error-accent-color-);
 }
-.dialog_box_holder,.dialog_box_holder_1{
+.dialog_box_holder,.dialog_box_holder_1,.dialog_box_holder_2{
   animation-name: popup;
   animation-duration: 0.5s;
   animation-timing-function: c;
@@ -677,6 +677,29 @@
 .dialog_box_holder_1{
   width:37em;
   height:27em;
+}
+.dialog_box_holder_2{
+  width:37em;
+  height:25em;
+}
+
+.type_btn,.active_type_btn{
+  width:50%;
+  cursor: pointer;
+  font-size: 1.1em;
+  background: none;
+  border:0.1em solid var(--table-selection-color-);
+  border-radius:0.2em;
+  color:var(--primary-text-color-);
+  padding:0.3em 0;
+  transition: all ease-out 0.2s;
+}
+.active_type_btn{
+  background: var(--accent-color-);
+  color:var(--background-color-);
+}
+.type_btn:hover{
+  background: var(--table-selection-color-);
 }
 .dialog_header{
   display: flex;
@@ -800,3 +823,98 @@
   width:1em;
   height:1em;
 }
+
+.actions_section{
+  display:flex;
+  gap:0.5em;
+}
+
+.auction_btn,.destroy_btn,.used_btn{
+  width:7em;
+  padding:0.3em 0;
+  border:none;
+  background: var(--primary-color-);
+  color:var(--primary-text-color-);
+  border-radius:0.4em;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: all ease-out 0.2s;
+  display:flex;
+  gap:0.2em;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.destroy_btn{
+  background: var(--error-accent-color-);
+}
+.used_btn{
+  background: var(--success-accent-color-);
+}
+
+.auction_btn:hover{
+  background: var(--table-selection-color-);
+}
+
+.destroy_btn:hover{
+  background: var(--error-border-color-);
+}
+
+.used_btn:hover{
+  background: var(--success-border-color-);
+}
+
+.pagination_container{
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap:1em;
+  margin:1em 0 2em 0;;
+}
+.pages_container{
+  display:flex;
+  align-items: center;
+  justify-content: center;
+  gap:0.5em;
+  min-width:25em;
+
+}
+.pagination_icon{
+  width:1.5em;
+  height:1.5em;
+  color:var(--background-color-);
+}
+.pagination_button{
+  width:5em;
+    padding:0.5em 0;
+    border: none;
+    background: var(--primary-color-);
+    cursor: pointer;
+    border-radius: 0.3em;
+  }
+.pagination_page_button{
+  width:3em;
+  height:3em;
+  border-radius: 50%;
+  font-size: 1.1em;
+}
+  .pagination_active {
+    background: var(--accent-color-);
+    color: var(--primary-text-color-);
+    border-color: var(--accent-color-);
+    font-weight: bold;
+  }
+
+  .empty_handler{
+    width:100%;
+    height:30em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .empty_handler_text{
+    font-size: 5em;;
+    color:var(--background-color-);
+  }

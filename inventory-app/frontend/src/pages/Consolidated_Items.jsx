@@ -1,23 +1,116 @@
-import React,{useState} from 'react'
+import React,{useState,useEffect,useRef} from 'react'
 import Sidebar from '../components/Sidebar'
 import { IoIosSearch } from "react-icons/io";
 import { GoDownload } from "react-icons/go";
 import { IoIosAdd } from "react-icons/io";
 import { TfiTrash } from "react-icons/tfi";
+import { IoIosArrowBack, IoIosArrowForward  } from "react-icons/io";
 import Add_Consolidated_dialog from '../components/Add_Consolidated_dialog';
 import { useNavigate } from 'react-router-dom'
 import Status_model from '../components/Status_model';
+import axios from 'axios'
+import * as XLSX from "xlsx-js-style";
 function Consolidated_Items() {
+    const [consolidatedItems,setConsolidatedItems]=useState([])
+    const [search,setSearch]=useState("")
+    const [filterValues,setFilterValues]=useState([])
+    const [page,setPage]=useState(1)
     const [addDialog,setAddDialog]=useState(false)
     const [status,setStatus]=useState({"type":"","msg":""})
     const [selectedCategory,setSelectedCategory]=useState([])
     const [item,setItem]=useState([])
-    const handle_submit_add=()=>{
-        setStatus({"type":"error","msg":"Invalid Details!"})
-        setTimeout(()=>{
-            setStatus({"type":"","msg":""})
-        },2000)
+    const listRef = useRef(null);
+
+    const [totalPage,setTotalPage]=useState(0)
+    
+
+
+    const downloadExcel = (data, filename = "items.xlsx") => {
+        
+        
+        const worksheet = XLSX.utils.json_to_sheet(data);
+
+        const range = XLSX.utils.decode_range(worksheet["!ref"]);
+
+        
+        const headerStyle = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "4472C4" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+            top: { style: "thin" },
+            bottom: { style: "thin" },
+            left: { style: "thin" },
+            right: { style: "thin" },
+            },
+        };
+
+        
+        const cellStyle = {
+            alignment: { vertical: "center" },
+            border: {
+            top: { style: "thin" },
+            bottom: { style: "thin" },
+            left: { style: "thin" },
+            right: { style: "thin" },
+            },
+        };
+
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: C })];
+            if (cell) cell.s = headerStyle;
+        }
+
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: C })];
+            if (cell) cell.s = cellStyle;
+            }
+        }
+
+        
+        worksheet["!cols"] = Object.keys(data[0] || {}).map(() => ({
+            wch: 18,
+        }));
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Items");
+
+        XLSX.writeFile(workbook, filename);
     }
+
+
+    const handle_submit_add=(file)=>{
+        if (file){
+            let access_token=JSON.parse(sessionStorage.getItem("access_token"))
+            const formData = new FormData();
+            formData.append("file", file);
+
+            axios.post("http://127.0.0.1:8000/consolidated/create-consolidated-items",formData,{headers: {Authorization: `Bearer ${access_token}`,},})
+                .then((data)=>{
+                    if(data.status==200){
+                        setStatus({"type":"success","msg":"Successfully Created!"})
+                        setTimeout(()=>{
+                            setStatus({"type":"","msg":""})
+                            handleGETRequests()
+                        },1000)
+                    }
+                })
+                .catch((error)=>{
+                    if(error.status==401){
+                        handleRefresh()
+                    }
+                    else{
+                        setStatus({"type":"error","msg":"Invalid Details!"})
+                    }
+                })
+        }
+        else{
+            setStatus({"type":"error","msg":"Invalid Details!"})
+        }
+    }
+
+
     const navigate=useNavigate()
     
     const handle_add_dialog=()=>{
@@ -27,10 +120,12 @@ function Consolidated_Items() {
     const handleCategory=(item)=>{
         if(selectedCategory.indexOf(item)==-1){
             setSelectedCategory([...selectedCategory,item])
+            
         }
         else{
             setSelectedCategory(selectedCategory.filter((category)=>category!=item))
         }
+        handleGETRequest()
     }
     const select_item=(item_id)=>{
         if(item.indexOf(item_id)!=-1){
@@ -41,15 +136,122 @@ function Consolidated_Items() {
         }
     }
     const handle_item_deletion=()=>{
-        setStatus({"type":"success","msg":"Successfully Deleted!"})
-        setTimeout(()=>{
-            setStatus({"type":"","msg":""})
-            setItem([])
-        },2000)
+        
+        
+        let payload={
+            "item_ids":item
+        }
+        let access_token=JSON.parse(sessionStorage.getItem("access_token"))
+        axios.delete("http://127.0.0.1:8000/consolidated/delete-consolidated-items",JSON.stringify(payload),{headers:{"Authorization":`Bearer ${access_token}`}})
+            .then((data)=>{
+                if(data.status==200){
+                    setStatus({"type":"success","msg":"Successfully Deleted!"})
+                    setTimeout(()=>{
+                        setStatus({"type":"","msg":""})
+                        setItem([])
+                        handleGETRequests()
+                    },1000)
+                }
+            })
+            .catch((error)=>{
+                if(error.status==401){
+                    handleRefresh()
+                }
+                else{
+                    setStatus({"type":"error","msg":"Invalid Details!"})
+                }
+            })
+        
     }
-    const handleNavigate=(page)=>{
+
+    const handle_item_download=()=>{
+        let access_token=JSON.parse(sessionStorage.getItem("access_token"))
+        axios.get("http://127.0.0.1:8000/consolidated/download-consolidated-items",{headers:{"Authorization":`Bearer ${access_token}`}})
+        .then((data)=>{
+            if(data.status==200){
+
+                const dataset=data.data.items
+
+                const formatted = dataset.map(i => ({
+                    "Property Head": i.property_head,
+                    "Appendix": i.appendix,
+                    "Fund Details": i.fund_details,
+                    "Last Year Value": i.prev_year_value,
+                    "Last Year Purchases": i.prev_year_purchases,
+                    "UNSV Value": i.unsv_value,
+                    "SERV Value": i.serv_value,
+                    "Depreciated Value": i.dep_value,
+                    "Remarks": i.remarks ?? "",
+                }));
+
+                downloadExcel(formatted, "Consolidated.xlsx");
+            }
+        })
+        .catch((error)=>{
+            if(error.status==401){
+                    handleRefresh()
+                }
+            else{
+                setStatus({"type":"error","msg":"Invalid Details!"})
+            }
+        })
+    
+    }
+
+    const handleNavigate=(page,appendix)=>{
+        sessionStorage.setItem("consolidated_item_id",appendix)
         navigate(page)
     }
+
+    const handleRefresh=()=>{
+        let refresh_token=JSON.parse(sessionStorage.getItem("refresh_token"))
+        axios.post(`http://127.0.0.1:8000/auth/refresh/${refresh_token}`)
+            .then((data)=>{
+                if(data.status==200){
+                   
+                    
+                    sessionStorage.setItem("access_token",JSON.stringify(data.data.access_token))
+                    
+                    handleGETRequest()
+                }
+            })
+            .catch((error)=>{
+                setStatus({"type":"error","msg":"Invalid Details!"})
+            })
+    }
+    const handleGETRequest=()=>{
+        let access_token=JSON.parse(sessionStorage.getItem("access_token"))
+        axios.get("http://127.0.0.1:8000/consolidated/get-consolidated-items",{params: { fund_details_filter: selectedCategory.length ? selectedCategory: undefined, search : search || undefined , skip : page , limit : 10 ,},headers:{"Authorization":`Bearer ${access_token}`}})
+            .then((data)=>{
+                if(data.status==200){
+                    setConsolidatedItems(data.data.items)
+                    setPage(1)
+                    setTotalPage(Math.ceil(data.data.total / data.data.limit))
+                    setFilterValues(data.data.filter_values)
+                }
+            })
+            .catch((error)=>{
+                if(error.status==401){
+                        handleRefresh()
+                    }
+                else{
+                    setStatus({"type":"error","msg":"Invalid Details!"})
+                }
+            })
+    
+    
+    }
+    
+    const handlePageChange=(pg)=>{
+        setPage(pg)
+        handleGETRequest()
+        listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+
+    useEffect(()=>{
+        handleGETRequest()
+    },[])
 
 
     return (
@@ -64,125 +266,92 @@ function Consolidated_Items() {
                     <h1 className="section_title red-hat-display-bold ">Consolidated Items</h1>
                     <div className='input_holder'>
                         <IoIosSearch className='icon_1'/>
-                        <input type="text" placeholder='Search For Items' className='input_box space-mono-regular'/>
+                        <input type="text" placeholder='Search For Items' className='input_box space-mono-regular' defaultValue={search} onChange={(e)=>setSearch(e.target.value)} onKeyDown={(e) => {if (e.key === "Enter") {handleGETRequest()}}}/>
                     </div>
                     
                 </div>
-                <div className="inner_section">
-                    <h2 className="section_title_1 space-mono-bold ">Category</h2>   
+                {filterValues.length>0 && <div className="inner_section">
+                    <h2 className="section_title_1 space-mono-bold ">Fund Details Filter</h2>   
                     <div className="items_container">
-                        <button className={(selectedCategory.indexOf("Category 1")==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory("Category 1")}>Category 1</button>
-                        <button className={(selectedCategory.indexOf("Category 2")==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory("Category 2")}>Category 2</button>
-                        <button className={(selectedCategory.indexOf("Category 3")==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory("Category 3")}>Category 3</button>
-                        <button className={(selectedCategory.indexOf("Category 4")==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory("Category 4")}>Category 4</button>
-                        <button className={(selectedCategory.indexOf("Category 5")==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory("Category 5")}>Category 5</button>
-                        <button className={(selectedCategory.indexOf("Category 6")==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory("Category 6")}>Category 6</button>
-                        <button className={(selectedCategory.indexOf("Category 7")==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory("Category 7")}>Category 7</button>
-                        <button className={(selectedCategory.indexOf("Category 8")==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory("Category 8")}>Category 8</button>
-                        <button className={(selectedCategory.indexOf("Category 9")==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory("Category 9")}>Category 9</button>
-                        <button className={(selectedCategory.indexOf("Category 10")==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory("Category 10")}>Category 10</button>
+                        {filterValues.map((filter)=>{
+                            return (
+                                <button key={filter} className={(selectedCategory.indexOf(filter)==-1)?"filter_btn space-mono-regular":"active_btn space-mono-regular"} onClick={()=>handleCategory(filter)}>{filter}</button>
+                            )
+                        })}
+                    
                     </div>                 
-                </div>             
+                </div>   }          
                 <div className="table_section">
                     
-                    <table className='table_container'>
+                    {(consolidatedItems.length>0)?<table className='table_container' ref={listRef}>
                         <thead className='table_header'>
                             <tr>
                                 <th className='col_heading space-mono-bold'>Property Head</th>
                                 <th  className='col_heading space-mono-bold'>Appendix</th>
                                 <th  className='col_heading space-mono-bold'>Fund Details</th>
                                 <th  className='col_heading space-mono-bold'>Past Value</th>
-                                <th  className='col_heading space-mono-bold'>Present Value</th>
+                               
                                 <th className='col_heading space-mono-bold'>Actions</th>
                             </tr>
                         </thead>
                         <tbody className='table_body'>
-                            <tr className={(item.indexOf(1)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(1)}>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                                <td className='table_data'>
-                                    <div className='action_btn_holder'>
-                                        <button className='view_btn' onClick={()=>handleNavigate("/consolidated-items/1")}>View More</button>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr className={(item.indexOf(2)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(2)}>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                                <td className='table_data'>
-                                    <div className='action_btn_holder'>
-                                        <button className='view_btn' onClick={()=>handleNavigate("/consolidated-items/1")}>View More</button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr className={(item.indexOf(3)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(3)}>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                                <td className='table_data'>
-                                    <div className='action_btn_holder'>
-                                        <button className='view_btn' onClick={()=>handleNavigate("/consolidated-items/1")}>View More</button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr className={(item.indexOf(4)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(4)}>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                                <td className='table_data'>
-                                    <div className='action_btn_holder'>
-                                        <button className='view_btn' onClick={()=>handleNavigate("/consolidated-items/1")}>View More</button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr className={(item.indexOf(5)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(5)}>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                                <td className='table_data'>
-                                    <div className='action_btn_holder'>
-                                        <button className='view_btn' onClick={()=>handleNavigate("/consolidated-items/1")}>View More</button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr className={(item.indexOf(6)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(6)}>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                                <td className='table_data'>
-                                    <div className='action_btn_holder'>
-                                        <button className='view_btn' onClick={()=>handleNavigate("/consolidated-items/1")}>View More</button>
-                                    </div>
-                                </td>
-                            </tr>
-                            
-                            
+                            {consolidatedItems.map((consolidated)=>{
+                                return (
+                                    <tr className={(item.indexOf(consolidated.appendix)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(consolidated.appendix)}>
+                                        <td className='table_data space-mono-regular'>{consolidated.property_head}</td>
+                                        <td className='table_data space-mono-regular'>{consolidated.appendix}</td>
+                                        <td className='table_data space-mono-regular'>{consolidated.fund_details}</td>
+                                        <td className='table_data space-mono-regular'>{consolidated.prev_year_value}</td>
+                                        
+                                        
+                                        <td className='table_data'>
+                                            <div className='action_btn_holder'>
+                                                <button className='view_btn' onClick={()=>handleNavigate(`/consolidated-items/${consolidated.appendix}`, consolidated.appendix)}>View More</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
                         </tbody>
-                    </table>
+                    </table>:<div className='empty_handler'>
+                        <h3 className='empty_handler_text red-hat-display-bold'>No Items Found</h3>
+                    </div>}
                 </div>
+                {totalPage && <div className='pagination_container'>
+                    <button
+                        onClick={() => handlePageChange(page - 1)}
+                        disabled={page === 1}
+                        className='pagination_button space-mono-regular'
+                    >
+                        <IoIosArrowBack className='pagination_icon'/>
+                    </button>
+
+                    <div className="pages_container">
+                        {Array.from({ length: totalPage }, (_, i) => i + 1)
+                        .slice(
+                        Math.max(0, page - 3),
+                        Math.min(totalPage, page + 2)
+                        )
+                        .map(p => (
+                        <button
+                            key={p}
+                            onClick={() => handlePageChange(p)}
+                            className={(p==page)?"pagination_page_button space-mono-regular pagination_active":"pagination_page_button space-mono-regular"}
+                        >
+                            {p}
+                        </button>
+                        ))}
+
+                    </div>
+                    <button
+                        onClick={() => handlePageChange(page + 1)}
+                        disabled={page === totalPage}
+                        className='pagination_button space-mono-regular'>
+                        <IoIosArrowForward className='pagination_icon'/>
+                    </button>
+                </div>}
                 <div className="btn_section">
-                    <button className='action_btn_1 space-mono-regular'><GoDownload className='btn_icon'/> Download</button>
+                    <button className='action_btn_1 space-mono-regular' onClick={handle_item_download}><GoDownload className='btn_icon'/> Download</button>
                     <div className='items_btn_container'>
                         {(item.length>0)?<button className='action_btn_3 space-mono-regular' onClick={()=>handle_item_deletion()}><TfiTrash className='btn_icon_2'/> Delete Items</button>:<></>}
                         <button className='action_btn_1 space-mono-regular' onClick={()=>handle_add_dialog()}><IoIosAdd  className='btn_icon'/> New Items</button>

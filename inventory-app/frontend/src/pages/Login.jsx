@@ -6,20 +6,37 @@ import { RiLockPasswordLine } from "react-icons/ri";
 import { FaEye } from "react-icons/fa";
 import { FaEyeSlash } from "react-icons/fa";
 import Status_model from '../components/Status_model';
+import axios from 'axios'
 function Login() {
     const [password,setPassword]=useState(true)
     const [status,setStatus]=useState({"type":"","msg":""})
-
+    const [payload,setPayload]=useState({"email":"","password":""})
     const navigate=useNavigate()
     const handlePassword=(value)=>{
         setPassword(value)
     }
     const handleLogin=()=>{
-        setStatus({"type":"success","msg":"Successfully Logged In!"})
-        setTimeout(()=>{
-            setStatus({"type":"","msg":""})
-            navigate("/dashboard")
-        },2000)
+        if(payload.email && payload.password){
+            console.log(payload)
+            axios.post("http://127.0.0.1:8000/auth/login",payload)
+                .then((data)=>{
+                    if(data.status==200){
+                        sessionStorage.setItem("access_token",JSON.stringify(data.data.access_token))
+                        sessionStorage.setItem("refresh_token",JSON.stringify(data.data.refresh_token))
+                        setStatus({"type":"success","msg":"Successful Log In!"})
+                        setTimeout(()=>{
+                            setStatus({"type":"","msg":""})
+                            navigate("/dashboard")
+                        },2000)
+                    }
+                })
+                .catch((error)=>{
+                    setStatus({"type":"error","msg":"Invalid Login Details!"})
+                })
+        }
+        else{
+            setStatus({"type":"error","msg":"Invalid Login Details!"})
+        }
         
     }
   
@@ -35,11 +52,11 @@ function Login() {
                 <FaRegCircleUser  className='header_icon'/>
                 <div className='input_holder'>
                     <MdEmail className='icon_1'/>
-                    <input type="email" className='input_box space-mono-regular'  placeholder='Email'/>
+                    <input type="email" className='input_box space-mono-regular'  placeholder='Email' defaultValue={payload['email']} onChange={(e)=>setPayload({...payload,"email":e.target.value})}/>
                 </div>
                 <div className='input_holder'>
                     <RiLockPasswordLine className='icon_1'/>
-                    <input type={(password)?"password":"text"} className='input_box space-mono-regular' placeholder='Password'/>
+                    <input type={(password)?"password":"text"} className='input_box space-mono-regular' placeholder='Password' defaultValue={payload['password']} onChange={(e)=>setPayload({...payload,"password":e.target.value})}/>
                     {(password)?<button className='btn-1' onClick={()=>handlePassword(false)}><FaEye className='icon_2'/></button>:<button  className='btn-1' onClick={()=>handlePassword(true)}><FaEyeSlash className='icon_2'/></button>}
                 </div>
                 <button className='submit_btn space-mono-regular' onClick={handleLogin}>Submit</button>

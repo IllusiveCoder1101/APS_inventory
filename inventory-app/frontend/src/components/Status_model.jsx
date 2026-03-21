@@ -2,6 +2,8 @@ import React from 'react'
 import { IoMdCheckmarkCircleOutline } from "react-icons/io";
 import { RxCrossCircled } from "react-icons/rx";
 function Status_model({type,msg}) {
+
+  
   return (
     <div className={(type)?'status_container':"close_container"}>
       <div className={(type=="success")?"status_box success_box":(type=="error")?"status_box error_box":"close_box"}>

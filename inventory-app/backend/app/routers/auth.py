@@ -12,6 +12,10 @@ from app.core.security import (
     create_access_token, create_refresh_token,
     hash_data, verify_data
 )
+import logging
+from jose import jwt, JWTError
+logger = logging.getLogger(__name__)
+
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -64,13 +68,19 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
         "refresh_token": refresh_token
     }
 
-@router.post("/refresh", response_model=Token)
+@router.post("/refresh/{refresh_token}", response_model=Token)
 def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
+
     # Decode refresh token
+    payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
+    logger.info(f"the payload received is {payload.get("exp")}")
+    
     try:
         payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
+        logger.info(f"the payload received is {payload.get("type")}")
         email: str = payload.get("sub")
     except Exception:
+        logger.warning("invalid attempt!")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     user = db.query(User).filter(User.email == email).first()

@@ -1,16 +1,69 @@
-import React from 'react'
+import React, { useEffect,useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { useNavigate } from 'react-router-dom'
-
+import Status_model from '../components/Status_model';
+import axios from 'axios'
 function Dashboard() {
+    const [consolidatedItems,setConsolidatedItems]=useState([])
+    const [ExpendableItems,setExpendableItems]=useState({})
+    const [nonExpendableGFItems,setnonExpendableGFItems]=useState([])
+    const [nonExpendableSFItems,setnonExpendableSFItems]=useState([])
 
-  const navigate=useNavigate()
+    const [status,setStatus]=useState({"type":"","msg":""})
 
-  const handleNavigate=(page)=>{
-    navigate(page)
-  }
-  return (
+    const navigate=useNavigate()
+
+    const handleNavigate=(page)=>{
+        navigate(page)
+    }
+    const handleRefresh=()=>{
+        let refresh_token=JSON.parse(sessionStorage.getItem("refresh_token"))
+        axios.post(`http://127.0.0.1:8000/auth/refresh/${refresh_token}`)
+            .then((data)=>{
+                if(data.status==200){
+                    sessionStorage.setItem("access_token",JSON.stringify(data.data.access_token))
+                    handleGETRequest()
+                }
+            })
+            .catch((error)=>{
+                if(error.status==401){
+                    setStatus({"type":"error","msg":"Invalid Details!"})
+                    handleNavigate("/")
+                }
+            })
+    }
+    const handleGETRequest=()=>{
+        let access_token=JSON.parse(sessionStorage.getItem("access_token"))
+        axios.get("http://127.0.0.1:8000/dashboard/get-dashboard-items",{headers:{"Authorization":`Bearer ${access_token}`}})
+            .then((data)=>{
+                if(data.status==200){
+                    setExpendableItems(data.data.expendable_items)
+                    setConsolidatedItems(data.data.consolidated_items)
+                    setnonExpendableGFItems(data.data.non_expendable_items)
+                    setnonExpendableSFItems(data.data.non_expendable_items)
+                }
+            })
+            .catch((error)=>{
+                if(error.status==401){
+                    handleRefresh()
+                }
+            })
+    }
+    
+    useEffect(()=>{
+        handleGETRequest()
+        
+    },[])
+
+    useEffect(()=>{
+        setTimeout(()=>{
+            setStatus({"msg":"","type":""})
+        },1000)
+    },[status["type"]])
+
+    return (
     <div className='page_container_1'>
+        <Status_model msg={status['msg']} type={status['type']}/>
         <Sidebar/>
         <div className='main_section'>
             <div className='stats_section'>
@@ -66,65 +119,35 @@ function Dashboard() {
                 </div>
                 <div className="table_section">
                     
-                    <table className='table_container'>
+                    {consolidatedItems.length>0 ? <table className='table_container'>
                         <thead className='table_header'>
                             <th className='col_heading space-mono-bold'>Property Head</th>
                             <th  className='col_heading space-mono-bold'>Appendix</th>
                             <th  className='col_heading space-mono-bold'>Fund Details</th>
                             <th  className='col_heading space-mono-bold'>Past Value</th>
-                            <th  className='col_heading space-mono-bold'>Present Value</th>
+                            
                             
                         </thead>
                         <tbody className='table_body'>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                                
-                            </tr>
+                            {consolidatedItems.length>0 && consolidatedItems.map((consolidated)=>{
+                                return (
+                                    <tr className='table_data_container'>
+                                        <td className='table_data space-mono-regular'>{consolidated["property_head"]}</td>
+                                        <td className='table_data space-mono-regular'>{consolidated["appendix"]}</td>
+                                        <td className='table_data space-mono-regular'>{consolidated["fund_details"]}</td>
+                                        <td className='table_data space-mono-regular'>{consolidated['prev_year_value']}</td>
+                                       
+                                    </tr>
+                                )
+                            })}
 
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                                
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                                
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>Property Name</td>
-                                <td className='table_data space-mono-regular'>A</td>
-                                <td className='table_data space-mono-regular'>School Fund & Asset Replace Fund</td>
-                                <td className='table_data space-mono-regular'>31,20,708.08</td>
-                                <td className='table_data space-mono-regular'>33,94,679.98</td>
-                                
-                                
-                            </tr>
                             
                             
                         </tbody>
-                    </table>
+                    </table>:
+                    <div className='empty_handler'>
+                        <h3 className='empty_handler_text red-hat-display-bold'>No Items Found</h3>
+                    </div>}
                 </div>
             </div>
             <div className='items_section'>
@@ -134,58 +157,34 @@ function Dashboard() {
                                 
                 </div>
                 <div className="table_section">
-                    <table className='table_container'>
+                    {ExpendableItems.length>0 ? <table className='table_container'>
                         <thead className='table_header'>
                             <th className='col_heading space-mono-bold'>Ser No.</th>
                             <th  className='col_heading space-mono-bold'>Items</th>
                             <th  className='col_heading space-mono-bold'>Ledger Balance</th>
                             <th  className='col_heading space-mono-bold'>Utilized</th>
-                            <th  className='col_heading space-mono-bold'>Ground Balance</th>
+                            <th  className='col_heading space-mono-bold'>Purchase</th>
+                            
                         </thead>
                         <tbody className='table_body'>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>AA/AAA Battery/MIC</td>
-                                <td className='table_data space-mono-regular'>210 Nos</td>
-                                <td className='table_data space-mono-regular'>34 Nos</td>
-                                <td className='table_data space-mono-regular'>176 Nos</td>
-                                
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>AA/AAA Battery/MIC</td>
-                                <td className='table_data space-mono-regular'>210 Nos</td>
-                                <td className='table_data space-mono-regular'>34 Nos</td>
-                                <td className='table_data space-mono-regular'>176 Nos</td>
-                                
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>AA/AAA Battery/MIC</td>
-                                <td className='table_data space-mono-regular'>210 Nos</td>
-                                <td className='table_data space-mono-regular'>34 Nos</td>
-                                <td className='table_data space-mono-regular'>176 Nos</td>
-                                
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>AA/AAA Battery/MIC</td>
-                                <td className='table_data space-mono-regular'>210 Nos</td>
-                                <td className='table_data space-mono-regular'>34 Nos</td>
-                                <td className='table_data space-mono-regular'>176 Nos</td>
-                                
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>AA/AAA Battery/MIC</td>
-                                <td className='table_data space-mono-regular'>210 Nos</td>
-                                <td className='table_data space-mono-regular'>34 Nos</td>
-                                <td className='table_data space-mono-regular'>176 Nos</td>
-                                
-                            </tr>
+                            {ExpendableItems.length>0 && ExpendableItems.map((expendable)=>{
+                                return (
+                                    <tr className='table_data_container'>
+                                        <td className='table_data space-mono-regular'>{expendable.ser_no}</td>
+                                        <td className='table_data space-mono-regular'>{expendable.items}</td>
+                                        <td className='table_data space-mono-regular'>{expendable.qty_prev_month}</td>
+                                        <td className='table_data space-mono-regular'>{expendable.utilized_curr_month}</td>
+                                        <td className='table_data space-mono-regular'>{expendable.purchase_curr_month}</td>
+   
+                                    </tr>
+                                )
+                            })}
+                        
                             
                         </tbody>
-                    </table>
+                    </table>:<div className='empty_handler'>
+                        <h3 className='empty_handler_text red-hat-display-bold'>No Items Found</h3>
+                    </div>}
                 </div>
             </div>
             <div className='items_section'>
@@ -196,52 +195,32 @@ function Dashboard() {
                                 
                 </div>
                 <div className="table_section">
-                    <table className='table_container'>
+                    {nonExpendableGFItems.length>0 ? <table className='table_container'>
                         <thead className='table_header'>
                             <th className='col_heading space-mono-bold'>Ser No.</th>
                             <th  className='col_heading space-mono-bold'>LP No.</th>
                             <th  className='col_heading space-mono-bold'>Nomenclature</th>
+                            <th  className='col_heading space-mono-bold'>Category</th>
                             <th  className='col_heading space-mono-bold'>A/U</th>
-                            <th  className='col_heading space-mono-bold'>Vintage</th>
+                            
                         </thead>
                         <tbody className='table_body'>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>150</td>
-                                <td className='table_data space-mono-regular'>India Political Map</td>
-                                <td className='table_data space-mono-regular'>Pieces</td>
-                                <td className='table_data space-mono-regular'>22-06-93</td>
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>150</td>
-                                <td className='table_data space-mono-regular'>India Political Map</td>
-                                <td className='table_data space-mono-regular'>Pieces</td>
-                                <td className='table_data space-mono-regular'>22-06-93</td>
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>150</td>
-                                <td className='table_data space-mono-regular'>India Political Map</td>
-                                <td className='table_data space-mono-regular'>Pieces</td>
-                                <td className='table_data space-mono-regular'>22-06-93</td>
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>150</td>
-                                <td className='table_data space-mono-regular'>India Political Map</td>
-                                <td className='table_data space-mono-regular'>Pieces</td>
-                                <td className='table_data space-mono-regular'>22-06-93</td>
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>150</td>
-                                <td className='table_data space-mono-regular'>India Political Map</td>
-                                <td className='table_data space-mono-regular'>Pieces</td>
-                                <td className='table_data space-mono-regular'>22-06-93</td>
-                            </tr>
+                            {nonExpendableGFItems.length>0 && nonExpendableGFItems.map((nonExpendable)=>{
+                                return (
+                                    <tr className='table_data_container'>
+                                        <td className='table_data space-mono-regular'>{nonExpendable["ser_no"]}</td>
+                                        <td className='table_data space-mono-regular'>{nonExpendable["lp_no"]}</td>
+                                        <td className='table_data space-mono-regular'>{nonExpendable["nomenclature"]}</td>
+                                        <td className='table_data space-mono-regular'>{nonExpendable["category_appendix"]}</td>
+                                        <td className='table_data space-mono-regular'>{nonExpendable["a_u"]}</td>
+                                        
+                                    </tr>
+                                )
+                            })    }  
                         </tbody>
-                    </table>
+                    </table>:<div className='empty_handler'>
+                        <h3 className='empty_handler_text red-hat-display-bold'>No Items Found</h3>
+                    </div>}
                 </div>
             </div>
             <div className='items_section'>
@@ -251,52 +230,30 @@ function Dashboard() {
                          
                 </div>
                 <div className="table_section">
-                    <table className='table_container'>
+                    {nonExpendableSFItems.length>0 ? <table className='table_container'>
                         <thead className='table_header'>
                             <th className='col_heading space-mono-bold'>Ser No.</th>
                             <th  className='col_heading space-mono-bold'>LP No.</th>
                             <th  className='col_heading space-mono-bold'>Nomenclature</th>
                             <th  className='col_heading space-mono-bold'>A/U</th>
-                            <th  className='col_heading space-mono-bold'>Vintage</th>
+                            
                         </thead>
                         <tbody className='table_body'>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>150</td>
-                                <td className='table_data space-mono-regular'>India Political Map</td>
-                                <td className='table_data space-mono-regular'>Pieces</td>
-                                <td className='table_data space-mono-regular'>22-06-93</td>
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>150</td>
-                                <td className='table_data space-mono-regular'>India Political Map</td>
-                                <td className='table_data space-mono-regular'>Pieces</td>
-                                <td className='table_data space-mono-regular'>22-06-93</td>
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>150</td>
-                                <td className='table_data space-mono-regular'>India Political Map</td>
-                                <td className='table_data space-mono-regular'>Pieces</td>
-                                <td className='table_data space-mono-regular'>22-06-93</td>
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>150</td>
-                                <td className='table_data space-mono-regular'>India Political Map</td>
-                                <td className='table_data space-mono-regular'>Pieces</td>
-                                <td className='table_data space-mono-regular'>22-06-93</td>
-                            </tr>
-                            <tr className='table_data_container'>
-                                <td className='table_data space-mono-regular'>01.</td>
-                                <td className='table_data space-mono-regular'>150</td>
-                                <td className='table_data space-mono-regular'>India Political Map</td>
-                                <td className='table_data space-mono-regular'>Pieces</td>
-                                <td className='table_data space-mono-regular'>22-06-93</td>
-                            </tr>
+                            {nonExpendableSFItems.length>0 && nonExpendableSFItems.map((nonExpendable)=>{
+                                return (
+                                    <tr className='table_data_container'>
+                                        <td className='table_data space-mono-regular'>{nonExpendable["ser_no"]}</td>
+                                        <td className='table_data space-mono-regular'>{nonExpendable["lp_no"]}</td>
+                                        <td className='table_data space-mono-regular'>{nonExpendable["nomenclature"]}</td>
+                                        <td className='table_data space-mono-regular'>{nonExpendable["a_u"]}</td>
+                                        
+                                    </tr>
+                                )
+                            })    }  
                         </tbody>
-                    </table>
+                    </table>:<div className='empty_handler'>
+                        <h3 className='empty_handler_text red-hat-display-bold'>No Items Found</h3>
+                    </div>}
                 </div>
             </div>
             

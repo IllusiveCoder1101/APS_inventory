@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException,  UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import User, ExpendableItemsIssue, ExpendableItems
-from app.schemas import DeleteItems,ExpendableIssue,ExpendableIssueList, DefaultResponse
+from app.schemas import DeleteItems,ExpendableIssueCreate,ExpendableIssueEdit,ExpendableIssueGet, DefaultResponse
 from app.core.security import ( get_current_user )
-
+from fastapi import Query
+from typing import Optional
 
 router = APIRouter(prefix="/expendable-issue", tags=["expendable-issue"])
 
@@ -16,175 +17,172 @@ def get_db():
         db.close()
 
 
-@router.get("/get-expendable-issue/{category_id}")
-async def get_expendable_issue(category_id: int,current_user=Depends(get_current_user), db: Session = Depends(get_db))->list[ExpendableIssueList] :
-    items = db.query(ExpendableItemsIssue).filter(ExpendableItemsIssue.category_id==category_id).all()
+def item_query_params(
+    search: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+):
+    return {
+        "search": search,
+       
+        "skip": skip,
+        "limit": limit,
+    }
 
-    if not items:
+@router.get("/get-expendable-issue/{category_id}")
+async def get_expendable_issue(category_id: int,params=Depends(item_query_params),current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    query = db.query(ExpendableItemsIssue).filter(ExpendableItemsIssue.category_id==category_id)
+
+    if not query:
         raise HTTPException(status_code=404, detail="No Items Found")
 
-    final_response=[item.to_dict() for item in items]
-    return final_response
+    if params["search"]:
+        query = query.filter(
+            ExpendableItems.items.ilike(f"%{params['search']}%")
+        )
 
+    total = query.count()
+    
+    items = (
+        query
+        .order_by(ExpendableItemsIssue.ser_no)
+        .offset(params["skip"]*params["limit"])
+        .limit(params["limit"])
+        .all()
+    )
     
 
+    return {
+        "total": total,
+        "skip": params["skip"],
+        "limit": params["limit"],
+        "items": [item.to_dict() for item in items],
+    }
 
+    
 @router.post("/create-expendable-issue/{category_id}")
-async def create_expendable_issue(payload: ExpendableIssueList,current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
+async def create_expendable_issue(payload: ExpendableIssueCreate,current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
     item_data=payload
+    try:
+        item_check= db.query(ExpendableItems.ser_no==item_data.category_id).first()
 
-    item_check= db.query(ExpendableItems.ser_no==item_data.category_id).first()
+        if not item_check:
+            raise HTTPException(status_code=404, detail="No Category Found")
+        
+        if item_data["rv_iv"] and item_data["whom_id_issue"]:
+            raise HTTPException(status_code=403, detail="Invalid Data Request")
 
-    if not item_check:
-        raise HTTPException(status_code=404, detail="No Category Found")
+        if item_data['qty_'] > 0:
+            item = ExpendableItemsIssue(date=item_data['date'],
+                                rv_iv=item_data['rv_iv'] or "NA",
+                                category_id=item_data['category_id'],
+                                whom_id_issue=item_data["whom_id_issue"] or "Na",
+                                qty_received=item_data['qty'] if item_data["rv_iv"] else 0,
+                                qty_issued=item_data['qty'] if item_data["whom_id_issue"] else 0)
+            
+            
+            if item_data["rv_iv"]:
+                item_check.purchase_curr_month+=item_data['qty_received']
+            else:
+                item_check.utilized_curr_month+=item_data['qty_issued']
 
-    if item_data['qty_received']!=0:
-        item = ExpendableIssue(ser_no=item_data['ser_no'],
-                               date=item_data['date'],
-                               rv_iv=item_data['rv_iv'],
-                               category_id=item_data['category_id'],
-                               whom_id_issue="Na",
-                               qty_received=item_data['qty_received'],
-                               qty_issued=0,  
-                               remarks=item_data['remarks']
-                            )
-        item_check.final_balance+=item_data['qty_received']
-    else:
-        if item_check.final_balance-item_data['qty_issued']>=0:
-            item = ExpendableIssue(ser_no=item_data['ser_no'],
-                               date=item_data['date'],
-                               rv_iv='Na',
-                               category_id=item_data['category_id'],
-                               whom_id_issue=item_data['whom_id_issue'],
-                               qty_received=0,
-                               qty_issued=item_data['qty_issued'], 
-                               remarks=item_data['remarks'] 
-                            )
-    
-            item_check.final_balance-=item_data['qty_issued']
         else:
-            return {
-                "msg":"Item cannot be issued."
-            }
-
+            raise HTTPException(status_code=403, detail="Invalid Data Request")
+        
+                
+    except:
+        raise HTTPException(status_code=403, detail="Invalid Details")
 
     db.add(item)
     db.commit()
+    db.refresh(item)
+
+
     return {
         "msg": "Issue Added"
     }
+
+@router.put("edit-expendable-issues/{item_id}")
+async def edit_expendable_issues(item_id: int ,payload:ExpendableIssueEdit, current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
+
+
+    item=db.query(ExpendableItemsIssue).filter(ExpendableItemsIssue.ser_no==item_id).first()
+    exp_item=db.query(ExpendableItems).filter(ExpendableItems.ser_no==item.category_id).first()
+   
+    if not item:
+        raise HTTPException(status_code=404, detail="No Item Found")
+
     
+    if not payload.qty_issued and not payload.qty_received:
+        raise HTTPException(status_code=403, detail="Invalid Details")
+
+    
+    elif payload.qty_issued>0:
+        if item.qty_issued==0:
+            raise HTTPException(status_code=403, detail="Invalid Details")  
+        else:
+            if (exp_item.qty_prev_month +exp_item.purchase_curr_month-exp_item.utilized_curr_month)+item.qty_issued-payload.qty_issued>=0:
+                exp_item.utilized_curr_month-=item.qty_issued+payload.qty_issued
+                item.qty_issued=payload.qty_issued
+            else:
+                raise HTTPException(status_code=403, detail="Invalid Details")
+    
+    elif payload.qty_received>0:
+        if item.qty_received==0:
+            raise HTTPException(status_code=403, detail="Invalid Details")
+        else:
+            if (exp_item.qty_prev_month +exp_item.purchase_curr_month-exp_item.utilized_curr_month)-item.qty_received+payload.qty_received>=0:
+                exp_item.purchase_curr_month-=item.qty_received+payload.qty_received
+                item.qty_received=payload.qty_received
+            else:
+                raise HTTPException(status_code=403, detail="Invalid Details")
+    
+    elif payload.rv_iv:
+        if item.rv_iv!="Na":
+            item.rv_iv=payload.rv_iv
+        else:
+            raise HTTPException(status_code=403, detail="Invalid Details")
+    
+    elif payload.whom_id_issue:
+        if item.whom_id_issue!="Na":
+            item.whom_id_issue=payload.whom_id_issue
+        else:
+            raise HTTPException(status_code=403, detail="Invalid Details")
+    
+    
+    db.commit()
+
+    return {
+        "msg" : "Item Edited Successfully"
+    }
 
 
 
 @router.delete("/delete-expendable-issues")
 async def delete_expendable_issues(payload:DeleteItems, current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
+    
     item_ids=payload.item_ids
+
     for issue_id in item_ids:
-        item_query=db.query(ExpendableIssue).filter(ExpendableIssue.ser_no==issue_id).first()
+        item_query=db.query(ExpendableItemsIssue).filter(ExpendableItemsIssue.ser_no==issue_id).first()
         exp_item=db.query(ExpendableItems).filter(ExpendableItems.ser_no==item_query.category_id).first()
-        if item_query.qty_received>0:
-            if exp_item.final_balance-item_query.qty_received>=0:
-                exp_item.final_balance-=item_query.qty_received
+        
+        if not item_query:
+            raise HTTPException(status_code=404, detail="No Item Found")
+        elif item_query.qty_received>0:
+            
+            if (exp_item.qty_prev_month +exp_item.purchase_curr_month-exp_item.utilized_curr_month)-item_query.qty_received>=0:
+                exp_item.purchase_curr_month-=item_query.qty_received
             else:
                 return {
                     "msg":"Invalid request"
                 }
         elif item_query.qty_issued>0:
-            exp_item.final_balance+=item_query.qty_issued
-        deleted_item=db.query(ExpendableIssue).filter(ExpendableIssue.ser_no==issue_id).delete(synchronize_session=False)
+            exp_item.utilized_curr_month-=item_query.qty_issued
+        deleted_item=db.query(ExpendableItemsIssue).filter(ExpendableItemsIssue.ser_no==issue_id).delete(synchronize_session=False)
 
         db.commit()
 
     return {
         "msg": "Items Deleted Successfully"
     }
-
-@router.put("/edit-expendable-issue/{issue_id}")
-async def edit_expendable_issue(new_item: ExpendableIssue,issue_id: int,current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
-    
-    
-    item = db.query(ExpendableIssue).filter(ExpendableIssue.ser_no==issue_id).first()
-    item_update=db.query(ExpendableItems).filter(ExpendableItems.ser_no==item.category_id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="No item Found")
-    
-    if new_item.qty_received>0 and new_item.qty_issued>0:
-        return {
-            "msg":"Invalid request"
-        }
-    elif new_item.qty_received>0:
-        if item.qty_received>0:
-            if item_update.final_balance-item.qty_received+new_item.qty_received>=0:
-                item_update.final_balance-=item.qty_received+new_item.qty_received
-            
-                item.qty_received=new_item.qty_received
-                
-            else:
-                return {
-                    "msg":"Invalid request"
-                }
-        elif item.qty_issued>0:
-            item_update.final_balance+=item.qty_issued+new_item.qty_received
-            item.qty_received=new_item.qty_received
-    elif new_item.qty_issued>0:
-        if item.qty_received>0:
-            if item_update.final_balance-item.qty_received-new_item.qty_issued>=0:
-                item_update.final_balance-=item.qty_received-new_item.qty_issued
-                item.qty_issued=new_item.qty_issued
-            else:
-                return {
-                    "msg":"Invalid request"
-                }
-        elif item.qty_issued>0:
-            if item_update.final_balance+item.qty_issued-new_item.qty_issued>=0:
-                item_update.final_balance+=item.qty_issued-new_item.qty_issued
-                item.qty_issued=new_item.qty_issued
-            else:
-                return {
-                    "msg":"Invalid request"
-                }
-
-
-    if new_item.category_id:
-        item_check=db.query(ExpendableItems).filter(ExpendableItems.ser_no==new_item.category_id).first()
-        
-        if not item_check:
-            raise HTTPException(status_code=404, detail="Consolidated Item Category Does Not Exists")
-        item.category_id=new_item.category_id
-
-
-    
-
-    item.whom_id_issue=new_item.whom_id_issue | item.whom_id_issue
-    item.remarks=new_item.remarks | item.remarks
-
-    db.commit()
-
-    return {
-        "msg": "Item Updated Successfully"
-    }
-
-
-@router.delete("/delete-expendable-issue/{issue_id}")
-async def delete_expendable_issue(issue_id: int,current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
-    
-    item_query=db.query(ExpendableIssue).filter(ExpendableIssue.ser_no==issue_id).first()
-    exp_item=db.query(ExpendableItems).filter(ExpendableItems.ser_no==item_query.category_id).first()
-    if item_query.qty_received>0:
-        if exp_item.final_balance-item_query.qty_received>=0:
-            exp_item.final_balance-=item_query.qty_received
-        else:
-            return {
-                "msg":"Invalid request"
-            }
-    elif item_query.qty_issued>0:
-        exp_item.final_balance+=item_query.qty_issued
-    deleted_item=db.query(ExpendableIssue).filter(ExpendableIssue.ser_no==issue_id).delete(synchronize_session=False)
-
-    db.commit()
-
-    return {
-        "msg": "Item Deleted Successfully"
-    }
-
