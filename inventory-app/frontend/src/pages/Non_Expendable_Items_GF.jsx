@@ -1,6 +1,6 @@
 import React,{useState,useRef,useEffect} from 'react'
 import Sidebar from '../components/Sidebar'
-import { IoIosSearch } from "react-icons/io";
+import { IoIosSearch, IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { TfiTrash } from "react-icons/tfi";
 import { GoDownload } from "react-icons/go";
 import { IoIosAdd } from "react-icons/io";
@@ -24,6 +24,7 @@ function Non_Expendable_Items_GF() {
     const listRef = useRef(null);
     
     const [totalPage,setTotalPage]=useState(0)
+    const [loading,setLoading]=useState(true)
     
     
     const downloadExcel = (data, filename) => {
@@ -35,7 +36,7 @@ function Non_Expendable_Items_GF() {
             nomenclature: "Nomenclature",
             category_appendix:"Consolidated Category",
             a_u:"A/U",
-            vinatge:"Vintage",
+            vintage:"Vintage",
             qty: "Quantity",
             rate: "Rate",
             qty_ledger: "Quantity Ledger",
@@ -49,39 +50,27 @@ function Non_Expendable_Items_GF() {
             remarks: "Remarks",
         }
 
-        Object.entries(data).forEach(([key, item]) => {
+        Object.entries(data).forEach(([key, items]) => {
             const sheetName = key
 
-            const worksheet = XLSX.utils.aoa_to_sheet([])
-            const rows = item.inner_items.map((row) => {
+            const rows = items.map((row) => {
                 const formatted = {};
                 Object.entries(HEADERS_MAP).forEach(
-                    ([key, label]) => {
-                        formatted[label] = row[key] ?? "";
+                    ([k, label]) => {
+                        formatted[label] = row[k] ?? "";
                     }
                 );
                 return formatted;
             });
-            if (item?.length) {
-            const tableSheet = XLSX.utils.json_to_sheet(
-                item,
-                { origin: `A1` }
-            );
-            Object.assign(worksheet, tableSheet);
+            if (rows.length) {
+                const worksheet = XLSX.utils.json_to_sheet(rows);
+                XLSX.utils.book_append_sheet(
+                    workbook,
+                    worksheet,
+                    sheetName
+                );
             }
-
-            XLSX.utils.book_append_sheet(
-                workbook,
-                worksheet,
-                sheetName
-            );
-
         });
-
-        XLSX.utils.book_append_sheet(
-            workbook,
-            "All Items Summary"
-        );
 
         // ✅ Use provided filename
         XLSX.writeFile(workbook, filename);
@@ -99,7 +88,8 @@ function Non_Expendable_Items_GF() {
                         setStatus({"type":"success","msg":"Successfully Created!"})
                         setTimeout(()=>{
                             setStatus({"type":"","msg":""})
-                            handleGETRequests()
+                            setPage(1)
+                            handleGETRequest(1)
                         },1000)
                     }
                 })
@@ -118,13 +108,16 @@ function Non_Expendable_Items_GF() {
     }
         
     const handleCategory=(item)=>{
+        let newCategories;
         if(selectedCategory.indexOf(item)==-1){
-            setSelectedCategory([...selectedCategory,item])
+            newCategories=[...selectedCategory,item]
         }
         else{
-            setSelectedCategory(selectedCategory.filter((category)=>category!=item))
+            newCategories=selectedCategory.filter((category)=>category!=item)
         }
-        handleGETRequest()
+        setSelectedCategory(newCategories)
+        setPage(1)
+        handleGETRequest(1, newCategories)
     }
 
     const handle_add_dialog=()=>{
@@ -145,14 +138,15 @@ function Non_Expendable_Items_GF() {
             "item_ids":item
         }
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
-        axios.delete("http://127.0.0.1:8000/non-expendable/delete-non-expendable-items",JSON.stringify(payload),{headers:{"Authorization":`Bearer ${access_token}`}})
+        axios.delete("http://127.0.0.1:8000/non-expendable/delete-non-expendable-items",{data:payload,headers:{"Authorization":`Bearer ${access_token}`}})
             .then((data)=>{
                 if(data.status==200){
                     setStatus({"type":"success","msg":"Successfully Deleted!"})
                     setTimeout(()=>{
                         setStatus({"type":"","msg":""})
                         setItem([])
-                        handleGETRequests()
+                        setPage(1)
+                        handleGETRequest(1)
                     },1000)
                 }
             })
@@ -185,8 +179,7 @@ function Non_Expendable_Items_GF() {
     
     }
 
-    const handleNavigate=(page,item_id)=>{
-        sessionStorage.setItem("non_expendable_gf_id",item_id)
+    const handleNavigate=(page)=>{
         navigate(page)
     }
 
@@ -196,7 +189,7 @@ function Non_Expendable_Items_GF() {
             .then((data)=>{
                 if(data.status==200){
                     sessionStorage.setItem("access_token",JSON.stringify(data.data.access_token))
-                    
+                    setError(false)
                     handleGETRequest()
                 }
             })
@@ -204,15 +197,15 @@ function Non_Expendable_Items_GF() {
                 setStatus({"type":"error","msg":"Invalid Details!"})
             })
     }
-    const handleGETRequest=()=>{
+    const handleGETRequest=(pg=page, cats=selectedCategory)=>{
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
-        axios.get("http://127.0.0.1:8000/non-expendable/get-non-expendable-items/gov",{params: { category_appendix_filter: selectedCategory.length ? selectedCategory: undefined, search : search || undefined , skip : page , limit : 10 ,},headers:{"Authorization":`Bearer ${access_token}`}})
+        axios.get("http://127.0.0.1:8000/non-expendable/get-non-expendable-items/gov",{params: { category_appendix_filter: cats.length ? cats: undefined, search : search || undefined , skip : pg - 1 , limit : 10 ,},paramsSerializer: { indexes: null },headers:{"Authorization":`Bearer ${access_token}`}})
             .then((data)=>{
                 if(data.status==200){
                     setNonExpendable(data.data.items)
-                    setPage(1)
                     setTotalPage(Math.ceil(data.data.total / data.data.limit))
                     setFilterValues(data.data.filter_values)
+                    setTimeout(()=>setLoading(false),800)
                 }
             })
             .catch((error)=>{
@@ -229,7 +222,7 @@ function Non_Expendable_Items_GF() {
     
     const handlePageChange=(pg)=>{
         setPage(pg)
-        handleGETRequest()
+        handleGETRequest(pg)
         listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -242,6 +235,29 @@ function Non_Expendable_Items_GF() {
             handleRefresh()
         }
     },[error])
+    if(loading) return (
+    <div className='page_container_1'>
+        <Sidebar/>
+        <div className='skeleton_page'>
+            <div className='skeleton_table_section' style={{marginTop:'3em'}}>
+                <div className='skeleton_table_header'>
+                    <div className='skeleton skeleton_title'></div>
+                    <div className='skeleton skeleton_search'></div>
+                </div>
+                {[1,2,3,4,5,6,7,8].map(r=>(
+                    <div key={r} className='skeleton_row'>
+                        <div className='skeleton skeleton_cell w10'></div>
+                        <div className='skeleton skeleton_cell w15'></div>
+                        <div className='skeleton skeleton_cell flex'></div>
+                        <div className='skeleton skeleton_cell w15'></div>
+                        <div className='skeleton skeleton_cell w10'></div>
+                        <div className='skeleton skeleton_cell w15'></div>
+                        <div className='skeleton skeleton_cell w10'></div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </div>)
     return (
     <div className='page_container_1'>
         <Status_model msg={status['msg']} type={status['type']}/>
@@ -254,7 +270,7 @@ function Non_Expendable_Items_GF() {
                     <h1 className="section_title red-hat-display-bold ">Non-Expendable Items (Gov)</h1>
                     <div className='input_holder'>
                         <IoIosSearch className='icon_1'/>
-                        <input type="text" placeholder='Search For Items' className='input_box space-mono-regular' defaultValue={search} onChange={(e)=>setSearch(e.target.value)} onKeyDown={(e) => {if (e.key === "Enter") {handleGETRequest()}}}/>
+                        <input type="text" placeholder='Search For Items' className='input_box space-mono-regular' value={search} onChange={(e)=>setSearch(e.target.value)} onKeyDown={(e) => {if (e.key === "Enter") {setPage(1);handleGETRequest(1)}}}/>
                     </div>
                     
                 </div>
@@ -278,23 +294,25 @@ function Non_Expendable_Items_GF() {
                                 <th  className='col_heading space-mono-bold'>Nomenclature</th>
                                 <th  className='col_heading space-mono-bold'>A/U</th>
                                 <th  className='col_heading space-mono-bold'>Category</th>
+                                <th  className='col_heading space-mono-bold'>Vintage</th>
                                 <th className='col_heading space-mono-bold'>Actions</th>
                             </tr>
                         </thead>
                         <tbody className='table_body'>
-                            
+
                             {nonExpendable.map((items)=>{
                                 return (
-    
+
                                     <tr className={(item.indexOf(items.ser_no)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(items.ser_no)}>
                                         <td className='table_data space-mono-regular'>{items.ser_no}</td>
                                         <td className='table_data space-mono-regular'>{items.lp_no}</td>
                                         <td className='table_data space-mono-regular'>{items.nomenclature}</td>
                                         <td className='table_data space-mono-regular'>{items.category_appendix}</td>
                                         <td className='table_data space-mono-regular'>{items.a_u}</td>
+                                        <td className='table_data space-mono-regular'>{items.vintage}</td>
                                         <td className='table_data'>
                                         <div className='action_btn_holder'>
-                                                <button className='view_btn'  onClick={()=>handleNavigate(`/non-expendable-items-gf/${items.ser_no}`, items.ser_no)}>View More</button>
+                                                <button className='view_btn'  onClick={()=>handleNavigate(`/non-expendable-items-gf/${items.ser_no}`)}>View More</button>
                                             </div>
                                         </td>
                                     </tr>

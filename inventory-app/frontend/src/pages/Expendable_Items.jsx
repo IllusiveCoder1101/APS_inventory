@@ -9,6 +9,7 @@ import Add_Expendable_dialog from '../components/Add_Expendable_dialog';
 import { useNavigate } from 'react-router-dom'
 import Status_model from '../components/Status_model';
 import axios from 'axios';
+import * as XLSX from 'xlsx-js-style';
 function Expendable_Items() {
 
     const [addDialog,setAddDialog]=useState(false)
@@ -22,6 +23,7 @@ function Expendable_Items() {
     const [totalPage,setTotalPage]=useState(0)
 
     const [error,setError]=useState(false)
+    const [loading,setLoading]=useState(true)
     
 
     function downloadExcel(data, filename) {
@@ -40,7 +42,7 @@ function Expendable_Items() {
         ];
 
         Object.entries(data).forEach(([key, item]) => {
-            const sheetName = item.item_name || key;
+            const sheetName = (item["Item Name"] || key).toString().slice(0, 31);
 
             // ---------- ITEM SHEET ----------
             const worksheet = XLSX.utils.aoa_to_sheet([]);
@@ -185,7 +187,7 @@ function Expendable_Items() {
             "item_ids":item
         }
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
-        axios.delete("http://127.0.0.1:8000/expendable/delete-expendable-items",JSON.stringify(payload),{headers:{"Authorization":`Bearer ${access_token}`}})
+        axios.delete("http://127.0.0.1:8000/expendable/delete-expendable-items",{data:payload,headers:{"Authorization":`Bearer ${access_token}`}})
             .then((data)=>{
                 if(data.status==200){
                     setStatus({"type":"success","msg":"Successfully Deleted!"})
@@ -206,8 +208,7 @@ function Expendable_Items() {
             })
         
     }
-    const handleNavigate=(page,ser_no)=>{
-        sessionStorage.setItem("expendable_item_id", ser_no)
+    const handleNavigate=(page)=>{
         navigate(page)
     }
 
@@ -217,25 +218,25 @@ function Expendable_Items() {
             .then((data)=>{
                 if(data.status==200){
                     sessionStorage.setItem("access_token",JSON.stringify(data.data.access_token))
+                    setError(false)
                     handleGETRequest()
                 }
             })
             .catch((error)=>{
                 setStatus({"type":"error","msg":"Invalid Details!"})
-                handleNavigate("/")
+                navigate("/")
             })
     }
     
-    const handleGETRequest=()=>{
-    
+    const handleGETRequest=(pg)=>{
+        const currentPage = pg || page
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
-        axios.get("http://127.0.0.1:8000/expendable/get-expendable-items",{params: { search : search || undefined , skip : page-1 , limit : 10 ,},headers:{"Authorization":`Bearer ${access_token}`}})
+        axios.get("http://127.0.0.1:8000/expendable/get-expendable-items",{params: { search : search || undefined , skip : currentPage-1 , limit : 10 ,},headers:{"Authorization":`Bearer ${access_token}`}})
             .then((data)=>{
                 if(data.status==200){
-                    console.log(data.data)
                     setExpendableItems(data.data.items)
-                    setPage(1)
                     setTotalPage(Math.ceil(data.data.total / data.data.limit))
+                    setTimeout(()=>setLoading(false),800)
                 }
             })
             .catch((error)=>{
@@ -252,7 +253,7 @@ function Expendable_Items() {
 
     const handlePageChange=(pg)=>{
         setPage(pg)
-        handleGETRequest()
+        handleGETRequest(pg)
         listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     }
     useEffect(()=>{
@@ -263,6 +264,28 @@ function Expendable_Items() {
             handleRefresh()
         }
     },[error])
+    if(loading) return (
+    <div className='page_container_1'>
+        <Sidebar/>
+        <div className='skeleton_page'>
+            <div className='skeleton_table_section' style={{marginTop:'3em'}}>
+                <div className='skeleton_table_header'>
+                    <div className='skeleton skeleton_title'></div>
+                    <div className='skeleton skeleton_search'></div>
+                </div>
+                {[1,2,3,4,5,6,7,8].map(r=>(
+                    <div key={r} className='skeleton_row'>
+                        <div className='skeleton skeleton_cell w10'></div>
+                        <div className='skeleton skeleton_cell flex'></div>
+                        <div className='skeleton skeleton_cell w20'></div>
+                        <div className='skeleton skeleton_cell w20'></div>
+                        <div className='skeleton skeleton_cell w15'></div>
+                        <div className='skeleton skeleton_cell w10'></div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </div>)
     return (
     <div className='page_container_1'>
         <Status_model msg={status['msg']} type={status['type']}/>
@@ -275,7 +298,7 @@ function Expendable_Items() {
                     <h1 className="section_title red-hat-display-bold ">Expendable Items</h1>
                     <div className='input_holder'>
                         <IoIosSearch className='icon_1'/>
-                        <input type="text" placeholder='Search For Items' className='input_box space-mono-regular' defaultValue={search} onChange={(e)=>setSearch(e.target.value)} onKeyDown={(e) => {if (e.key === "Enter") {handleGETRequest()}}}/>
+                        <input type="text" placeholder='Search For Items' className='input_box space-mono-regular' value={search} onChange={(e)=>setSearch(e.target.value)} onKeyDown={(e) => {if (e.key === "Enter") {setPage(1);handleGETRequest(1)}}}/>
                     </div>
                     
                 </div>   
@@ -288,22 +311,24 @@ function Expendable_Items() {
                                 <th  className='col_heading space-mono-bold'>Ledger Balance</th>
                                 <th  className='col_heading space-mono-bold'>Utilized</th>
                                 <th  className='col_heading space-mono-bold'>Purchase</th>
+                                <th  className='col_heading space-mono-bold'>Remarks</th>
                                 <th className='col_heading space-mono-bold'>Actions</th>
                             </tr>
                         </thead>
                         <tbody className='table_body'>
                             {ExpendableItems.map((expendable)=>{
                                 return (
-                                    <tr className={(item.indexOf(expendable.ser_no)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(expendable.ser_no)}>
+                                    <tr key={expendable.ser_no} className={(item.indexOf(expendable.ser_no)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(expendable.ser_no)}>
                                         <td className='table_data space-mono-regular'>{expendable.ser_no}</td>
                                         <td className='table_data space-mono-regular'>{expendable.items}</td>
-                                        <td className='table_data space-mono-regular'>{expendable.qty_prev_month}</td>
-                                        <td className='table_data space-mono-regular'>{expendable.utilized_curr_month}</td>
-                                        <td className='table_data space-mono-regular'>{expendable.purchase_curr_month}</td>
+                                        <td className='table_data space-mono-regular'>{Number(expendable.qty_prev_month).toLocaleString('en-IN')}</td>
+                                        <td className='table_data space-mono-regular'>{Number(expendable.utilized_curr_month).toLocaleString('en-IN')}</td>
+                                        <td className='table_data space-mono-regular'>{Number(expendable.purchase_curr_month).toLocaleString('en-IN')}</td>
+                                        <td className='table_data space-mono-regular'>{expendable.remarks}</td>
                                         
                                         <td className='table_data'>
                                             <div className='action_btn_holder'>
-                                                <button className='view_btn' onClick={()=>handleNavigate(`/expendable-items/${expendable.ser_no}`, expendable.ser_no)}>View More</button>
+                                                <button className='view_btn' onClick={()=>handleNavigate(`/expendable-items/${expendable.ser_no}`)}>View More</button>
                                             </div>
                                         </td>
                                     </tr>

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APS Inventory - Application Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="logo">APS Inventory</div>
+        <ul class="nav-links">
+            <li><a href="#overview" class="active">Overview</a></li>
+            <li><a href="#dashboard">Dashboard</a></li>
+            <li><a href="#consolidated">Consolidated Items</a></li>
+            <li><a href="#expendable">Expendable Items</a></li>
+            <li><a href="#non-expendable">Non-Expendable Items</a></li>
+            <li><a href="#remarks">Remarks System</a></li>
+            <li><a href="#monthly">Monthly Process</a></li>
+        </ul>
+    </nav>
+
+    <main class="content">
+
+        <!-- OVERVIEW -->
+        <section id="overview" class="section">
+            <h1 class="section-title">Application Overview</h1>
+            <p class="section-desc">
+                The APS Inventory Management System helps track and manage all types of inventory across the institution. It is divided into three main categories, each handling a different kind of asset.
+            </p>
+
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-icon blue">C</div>
+                    <h3>Consolidated Items</h3>
+                    <p>High-level categories that group assets by type (e.g., Furniture, IT Equipment, Sports Gear). Each category tracks the total financial value including purchases, depreciation, and serviceable/unserviceable breakdowns.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon green">E</div>
+                    <h3>Expendable Items</h3>
+                    <p>Consumable supplies that get used up over time (e.g., paper, markers, cleaning supplies). Tracked monthly with opening stock, purchases, and consumption. Transactions are recorded for each issue or receipt.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon purple">NE</div>
+                    <h3>Non-Expendable Items</h3>
+                    <p>Permanent assets with a long lifespan (e.g., computers, furniture, vehicles). Split into Government Funded (GF) and School Funded (SF). Each item is linked to a consolidated category and has detailed tracking for quantity, condition, and value.</p>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>How They Connect</h4>
+                <p>Every <strong>Non-Expendable Item</strong> belongs to a <strong>Consolidated Category</strong>. When you add, edit, or remove a non-expendable item, the parent consolidated category's financial totals are automatically updated. Expendable items are independent and tracked on their own monthly cycle.</p>
+            </div>
+        </section>
+
+        <!-- DASHBOARD -->
+        <section id="dashboard" class="section">
+            <h1 class="section-title">Dashboard</h1>
+            <p class="section-desc">
+                The dashboard provides a quick snapshot of your entire inventory at a glance. It is the first screen you see after logging in.
+            </p>
+
+            <h2 class="subsection-title">Stats Overview</h2>
+            <p>Four summary cards appear at the top:</p>
+            <div class="steps">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <div>
+                        <strong>Consolidated Value</strong>
+                        <p>The total financial value of all consolidated categories combined. Gives a quick sense of the institution's total asset worth.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <div>
+                        <strong>Expendable Stock</strong>
+                        <p>The current net stock of all consumable items. Calculated as: opening balance + purchases made - items consumed this month.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <div>
+                        <strong>Non-Expendable (Gov)</strong>
+                        <p>Total count of all government-funded permanent assets currently tracked in the system.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">4</span>
+                    <div>
+                        <strong>Non-Expendable (School)</strong>
+                        <p>Total count of all school-funded permanent assets currently tracked in the system.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="subsection-title">Charts</h2>
+            <p>Five interactive charts provide visual insights:</p>
+            <ul class="feature-list">
+                <li><strong>Consolidated Value Breakdown</strong> &mdash; An area chart showing the top 10 highest-value categories with their previous value, serviceable value, unserviceable value, and depreciation side by side.</li>
+                <li><strong>Expendable Stock Flow</strong> &mdash; A doughnut chart showing the proportion of previous stock, new purchases, and items consumed this month.</li>
+                <li><strong>Items by Fund Type</strong> &mdash; A pie chart showing how many consolidated categories fall under Government Fund vs School Fund.</li>
+                <li><strong>Serviceable vs Unserviceable</strong> &mdash; A pie chart showing the total count of non-expendable items that are in working condition versus those that are not.</li>
+                <li><strong>Top 10 Highest Value Assets</strong> &mdash; A horizontal bar chart listing the 10 most expensive individual non-expendable items by total value.</li>
+            </ul>
+
+            <h2 class="subsection-title">Quick Tables</h2>
+            <p>Below the charts, four preview tables show the first 5 items from each section (Consolidated, Expendable, Non-Expendable GF, and Non-Expendable SF). Each table has an <strong>"Explore More"</strong> button that takes you to the full listing page for that section.</p>
+        </section>
+
+        <!-- CONSOLIDATED -->
+        <section id="consolidated" class="section">
+            <h1 class="section-title">Consolidated Items</h1>
+            <p class="section-desc">
+                Consolidated items are the top-level categories that group your permanent assets. Think of them as folders &mdash; each non-expendable item must belong to one of these categories.
+            </p>
+
+            <h2 class="subsection-title">What Each Category Tracks</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>What It Means</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Property Head</td><td>The name of the category (e.g., "Furniture & Fixtures")</td></tr>
+                        <tr><td>Appendix</td><td>A unique short code for the category (e.g., "A1", "A2")</td></tr>
+                        <tr><td>Fund Details</td><td>Whether this category is Government Funded (GF) or School Funded (SF)</td></tr>
+                        <tr><td>Previous Year Value</td><td>The total value of all items in this category from the previous year</td></tr>
+                        <tr><td>Purchases</td><td>Total value of new items added to this category this year</td></tr>
+                        <tr><td>Serviceable Value</td><td>Value of items that are in working condition</td></tr>
+                        <tr><td>Unserviceable Value</td><td>Value of items that are broken or unusable</td></tr>
+                        <tr><td>Depreciation</td><td>Value lost due to wear and tear over time</td></tr>
+                        <tr><td>Present Value</td><td>Automatically calculated: Previous Value + Purchases - Unserviceable - Depreciation</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2 class="subsection-title">How to Use</h2>
+            <div class="steps">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <div>
+                        <strong>View All Categories</strong>
+                        <p>The main page shows all consolidated categories in a table. You can search by name, appendix, or fund type. Use the fund detail filter buttons to show only GF or SF categories.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <div>
+                        <strong>Add New Categories</strong>
+                        <p>Click "New Items" and upload an Excel file. The system will read the spreadsheet and create new categories. If a category with the same appendix or property head already exists, it will be rejected.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <div>
+                        <strong>View &amp; Edit Details</strong>
+                        <p>Click "View More" on any row to see full details. You can edit any field except the present value (which is always calculated automatically). If you change the appendix, all linked non-expendable items will be updated as well.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">4</span>
+                    <div>
+                        <strong>Delete Categories</strong>
+                        <p>Select one or more rows by clicking on them, then click "Delete Items". Deleting a category will also remove all non-expendable items linked to it.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">5</span>
+                    <div>
+                        <strong>Download Report</strong>
+                        <p>Click "Download" to export all categories as a formatted Excel file with styled headers and borders.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box warning">
+                <h4>Important</h4>
+                <p>Deleting a consolidated category will permanently remove all non-expendable items that belong to it. Make sure to reassign items to a different category before deleting if you want to keep them.</p>
+            </div>
+        </section>
+
+        <!-- EXPENDABLE -->
+        <section id="expendable" class="section">
+            <h1 class="section-title">Expendable Items</h1>
+            <p class="section-desc">
+                Expendable items are consumable supplies that get used up and need regular restocking. The system tracks them on a monthly cycle &mdash; each month starts fresh with a new opening balance.
+            </p>
+
+            <h2 class="subsection-title">How the Monthly Cycle Works</h2>
+            <div class="flow-diagram">
+                <div class="flow-box">Opening Balance<span class="flow-sub">(carried from last month)</span></div>
+                <div class="flow-arrow">+</div>
+                <div class="flow-box">Purchases<span class="flow-sub">(new stock added)</span></div>
+                <div class="flow-arrow">-</div>
+                <div class="flow-box">Utilized<span class="flow-sub">(consumed this month)</span></div>
+                <div class="flow-arrow">=</div>
+                <div class="flow-box highlight">Final Balance<span class="flow-sub">(becomes next month's opening)</span></div>
+            </div>
+
+            <h2 class="subsection-title">Managing Items</h2>
+            <div class="steps">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <div>
+                        <strong>View All Items</strong>
+                        <p>The main page lists all expendable items with their name, opening stock, purchases, and consumption. Use the search bar to find specific items by name.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <div>
+                        <strong>Add Items via Excel</strong>
+                        <p>Upload a spreadsheet to add new consumable items. Each item needs a unique name, unit of measurement, and opening quantities.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <div>
+                        <strong>View Item Details</strong>
+                        <p>Click "View More" to see the full detail page for an item, including all transaction records (issues and receipts) for the current month.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="subsection-title">Recording Transactions (Issues)</h2>
+            <p>Each expendable item has a transaction log that records every time stock is received or issued out:</p>
+            <div class="two-col">
+                <div class="col-box">
+                    <h4>Receiving Stock (RV)</h4>
+                    <p>When new stock arrives, record it as a receipt. This adds to the purchase quantity for the month. Enter the date, RV number, source, and quantity received.</p>
+                </div>
+                <div class="col-box">
+                    <h4>Issuing Stock (IV)</h4>
+                    <p>When supplies are given out to a class, office, or department, record it as an issuance. This adds to the utilized quantity. Enter the date, IV number, recipient, and quantity issued.</p>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>End of Month</h4>
+                <p>At the end of each month, the system automatically rolls over. The final balance becomes the new opening balance for the next month, and all transaction records from the previous month are cleared. A summary email is generated and sent before the rollover happens.</p>
+            </div>
+        </section>
+
+        <!-- NON-EXPENDABLE -->
+        <section id="non-expendable" class="section">
+            <h1 class="section-title">Non-Expendable Items</h1>
+            <p class="section-desc">
+                Non-expendable items are permanent assets that have a long lifespan &mdash; things like computers, vehicles, lab equipment, and furniture. They are split into two sections based on how they were funded.
+            </p>
+
+            <div class="two-col">
+                <div class="col-box">
+                    <h4>Government Funded (GF)</h4>
+                    <p>Items purchased using government grants and official funding. These typically include infrastructure, IT equipment, vehicles, and large installations.</p>
+                </div>
+                <div class="col-box">
+                    <h4>School Funded (SF)</h4>
+                    <p>Items purchased using the school's own funds. These often include sports equipment, library resources, workshop tools, and extracurricular supplies.</p>
+                </div>
+            </div>
+
+            <h2 class="subsection-title">What Each Item Tracks</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>What It Means</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Serial No.</td><td>Automatically assigned number for identification</td></tr>
+                        <tr><td>LP No.</td><td>Ledger Page number &mdash; references the physical register</td></tr>
+                        <tr><td>Nomenclature</td><td>The name/description of the item (e.g., "Desktop Computer Dell Optiplex")</td></tr>
+                        <tr><td>Category</td><td>Which consolidated category this item belongs to (e.g., A2 for IT Equipment)</td></tr>
+                        <tr><td>A/U</td><td>Authorization/Usage status</td></tr>
+                        <tr><td>Vintage</td><td>The date when the item was originally procured</td></tr>
+                        <tr><td>Quantity &amp; Rate</td><td>How many units and the price per unit</td></tr>
+                        <tr><td>Ledger vs Ground Qty</td><td>What the records say vs what's physically present &mdash; helps catch discrepancies</td></tr>
+                        <tr><td>Serviceable / Unserviceable</td><td>How many are in working condition vs broken/unusable</td></tr>
+                        <tr><td>Depreciation</td><td>Value lost over time due to wear</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2 class="subsection-title">How to Use</h2>
+            <div class="steps">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <div>
+                        <strong>Browse &amp; Filter</strong>
+                        <p>The list page shows all items for the selected fund type (GF or SF). Use the search bar to find items by name. Use the category filter buttons to narrow down to specific consolidated categories.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <div>
+                        <strong>Add Items via Excel</strong>
+                        <p>Upload a spreadsheet with item details. The system validates each item &mdash; the category must exist in consolidated items, and item names and LP numbers must be unique.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <div>
+                        <strong>View &amp; Edit Details</strong>
+                        <p>Click "View More" to see full details including computed values like total bid value and depreciated price. You can edit any field. If you change the category, values are moved from the old consolidated category to the new one.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">4</span>
+                    <div>
+                        <strong>Delete Items</strong>
+                        <p>Select items and delete them. The parent consolidated category's totals are automatically adjusted to reflect the removal.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">5</span>
+                    <div>
+                        <strong>Download Report</strong>
+                        <p>Export all items as a formatted Excel file. Items are organized into separate sheets by category, with calculated fields included.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>Automatic Value Updates</h4>
+                <p>Whenever you add, edit, or delete a non-expendable item, the system automatically recalculates the parent consolidated category's totals. You never have to manually update consolidated values &mdash; they always stay in sync.</p>
+            </div>
+        </section>
+
+        <!-- REMARKS -->
+        <section id="remarks" class="section">
+            <h1 class="section-title">Remarks System</h1>
+            <p class="section-desc">
+                The remarks system allows you to mark non-expendable items for disposal. When items are no longer needed or are beyond repair, you can tag specific quantities for auctioning, destroying, or marking as used.
+            </p>
+
+            <h2 class="subsection-title">Three Types of Remarks</h2>
+            <div class="cards-grid thirds">
+                <div class="card">
+                    <div class="badge auction">Auction</div>
+                    <p>Items to be sold off through an auction process. The marked quantity is removed from the active inventory count.</p>
+                </div>
+                <div class="card">
+                    <div class="badge destroy">Destroy</div>
+                    <p>Items that are damaged beyond repair and need to be disposed of. These are permanently removed from the usable count.</p>
+                </div>
+                <div class="card">
+                    <div class="badge used">Used</div>
+                    <p>Items that have been consumed or fully utilized. Marked as no longer available in the inventory.</p>
+                </div>
+            </div>
+
+            <h2 class="subsection-title">Adding a Remark</h2>
+            <div class="steps">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <div>
+                        <strong>Open Item Details</strong>
+                        <p>Navigate to the detail page of any non-expendable item.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <div>
+                        <strong>Choose Type &amp; Quantity</strong>
+                        <p>Select whether you want to mark items as Auction, Destroy, or Used. Enter how many units to mark. Then choose whether these units should come from the <strong>Serviceable</strong> pool or the <strong>Unserviceable</strong> pool.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <div>
+                        <strong>System Updates</strong>
+                        <p>The system deducts the quantity from your chosen pool and updates the consolidated category totals accordingly. A badge appears on the item showing the remark.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="subsection-title">Removing a Remark</h2>
+            <div class="steps">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <div>
+                        <strong>Click the Badge</strong>
+                        <p>On the item detail page, click the remark badge you want to remove.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <div>
+                        <strong>Choose Restore Pool</strong>
+                        <p>A confirmation dialog asks where to restore the items &mdash; back to <strong>Serviceable</strong> or <strong>Unserviceable</strong>. This lets you correct the inventory if items were repaired or reassessed.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <div>
+                        <strong>System Restores</strong>
+                        <p>The quantities and financial values are added back to the appropriate pool, and the consolidated category totals are updated.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MONTHLY PROCESS -->
+        <section id="monthly" class="section">
+            <h1 class="section-title">Monthly Process</h1>
+            <p class="section-desc">
+                At the end of each month, the system performs two automated tasks to prepare the inventory for the new month.
+            </p>
+
+            <div class="steps">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <div>
+                        <strong>Email Report Generation</strong>
+                        <p>The system generates a summary email containing the current state of all inventory. This serves as a monthly snapshot and audit trail before any rollover happens.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <div>
+                        <strong>Expendable Rollover</strong>
+                        <p>For expendable items, the final balance (opening + purchased - consumed) becomes the new opening balance for the next month. All individual transaction records from the previous month are cleared, giving a fresh start.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <div>
+                        <strong>Yearly Rollover (Annual)</strong>
+                        <p>Once a year, consolidated categories go through a yearly adjustment. The present value becomes the new previous year value, and purchase/depreciation fields are reset for the new financial year.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>No Manual Action Needed</h4>
+                <p>Both the monthly and yearly rollovers are fully automated. You do not need to trigger them manually. The system handles everything in the background at the scheduled time.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Simple scroll spy for nav
+        const sections = document.querySelectorAll('.section');
+        const navLinks = document.querySelectorAll('.nav-links a');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const top = section.offsetTop - 100;
+                if (window.scrollY >= top) {
+                    current = section.getAttribute('id');
+                }
+            });
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

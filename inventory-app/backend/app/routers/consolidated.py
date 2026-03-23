@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException,  UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import select, distinct
 from app.database import SessionLocal
-from app.models import User, ExpendableItems, ConsolidatedItems,NonExpendableItems
-from app.schemas import DeleteItems,ConsolidatedAppendixList,ConsolidatedItemEdit,ConsolidatedItemGet,ConsolidatedItemsGet,DefaultResponse
+from app.models import ConsolidatedItems,NonExpendableItems
+from app.schemas import ConsolidatedAppendixList,ConsolidatedItemEdit,DefaultResponse
 from app.core.security import ( get_current_user )
 import polars as pl
 from fastapi import Query
@@ -38,12 +38,12 @@ async def get_consolidated_items(current_user=Depends(get_current_user),params=D
     category_col = select(distinct(ConsolidatedItems.fund_details)).order_by(ConsolidatedItems.fund_details)
     filter_values = db.execute(category_col).scalars().all()
 
-    if not query:
-        raise HTTPException(status_code=404, detail="No Items Found")
-
     if params["search"]:
+        search_term = f"%{params['search']}%"
         query = query.filter(
-            ConsolidatedItems.property_head.ilike(f"%{params['search']}%")
+            ConsolidatedItems.property_head.ilike(search_term) |
+            ConsolidatedItems.appendix.ilike(search_term) |
+            ConsolidatedItems.fund_details.ilike(search_term)
         )
 
     if params["fund_details_filter"]:
@@ -56,7 +56,7 @@ async def get_consolidated_items(current_user=Depends(get_current_user),params=D
     items = (
         query
         .order_by(ConsolidatedItems.id)
-        .offset(params["skip"]*params["limit"])
+        .offset(params["skip"])
         .limit(params["limit"])
         .all()
     )
@@ -71,11 +71,8 @@ async def get_consolidated_items(current_user=Depends(get_current_user),params=D
     }
 
 @router.get("/download-consolidated-items")
-async def download_consolidated_item(current_user=Depends(get_current_user), db: Session = Depends(get_db))->list[ConsolidatedItemsGet] :
+async def download_consolidated_item(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     query = db.query(ConsolidatedItems)
-
-    if not query:
-        raise HTTPException(status_code=404, detail="No Items Found")
 
     total = query.count()
 
@@ -85,7 +82,7 @@ async def download_consolidated_item(current_user=Depends(get_current_user), db:
     for item in items:
         
         consolidated=item.to_dict()
-        consolidated['present_value']=consolidated['prev_year_value']+consolidated['prev_year_purchases']-consolidated['unsv_value']-consolidated['dep_value']
+        consolidated['present_value']=(consolidated['prev_year_value'] or 0)+(consolidated['prev_year_purchases'] or 0)-(consolidated['unsv_value'] or 0)-(consolidated['dep_value'] or 0)
 
         final_items.append(consolidated)
 
@@ -105,20 +102,21 @@ async def create_consolidated_items(file: UploadFile = File(...),current_user=De
     contents = await file.read()
     df = pl.read_excel(contents)
 
-    items_created = []
-
     for row in df.iter_rows():
         item_data = list(row)
         
-        if len(item_data) == 3:
-            raise HTTPException(status_code=403, detail="Invalid Data")
+        if len(item_data) != 3:
+            raise HTTPException(status_code=400, detail="Invalid Data")
 
 
         consolidated_item_check=db.query(ConsolidatedItems).filter(ConsolidatedItems.appendix==item_data[1]).first()
-
+        property_head_check=db.query(ConsolidatedItems).filter(ConsolidatedItems.property_head==item_data[0]).first()
 
         if consolidated_item_check:
-            raise HTTPException(status_code=402, detail="Consolidated Item Category Already Exists")
+            raise HTTPException(status_code=409, detail="Consolidated Item Category Already Exists")
+
+        if property_head_check:
+            raise HTTPException(status_code=409, detail="Property Head Already Exists")
 
         item = ConsolidatedItems(
             property_head=item_data[0],
@@ -131,8 +129,8 @@ async def create_consolidated_items(file: UploadFile = File(...),current_user=De
             dep_value=0
         )
         db.add(item)
-        db.commit()
-        db.refresh(item)
+
+    db.commit()
 
     return {
         "msg":"Items Added",
@@ -140,9 +138,9 @@ async def create_consolidated_items(file: UploadFile = File(...),current_user=De
 
 @router.delete("/delete-consolidated-items")
 async def delete_consolidated_items(payload:ConsolidatedAppendixList, current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
-    item_ids=payload.item_ids
-    
-    deleted_items=db.query(ConsolidatedItems).filter(ConsolidatedItems.appendix.in_(appendix)).delete(synchronize_session=False)
+    appendix_list=payload.appendix_list
+
+    deleted_items=db.query(ConsolidatedItems).filter(ConsolidatedItems.appendix.in_(appendix_list)).delete(synchronize_session=False)
 
     db.commit()
 
@@ -151,14 +149,14 @@ async def delete_consolidated_items(payload:ConsolidatedAppendixList, current_us
     }
         
 @router.get("/get-consolidated-item/{item_id}")
-async def get_consolidated_item(item_id: str,current_user=Depends(get_current_user),db: Session = Depends(get_db)) -> ConsolidatedItemGet:
+async def get_consolidated_item(item_id: str,current_user=Depends(get_current_user),db: Session = Depends(get_db)):
     item = db.query(ConsolidatedItems).filter(ConsolidatedItems.appendix==item_id).first()
 
     if not item:
         raise HTTPException(status_code=404, detail="No item Found")
 
     final_response=item.to_dict()
-    final_response['present_value']=final_response['prev_year_value']+final_response['prev_year_purchases']-final_response['unsv_value']-final_response['dep_value']
+    final_response['present_value']=(final_response['prev_year_value'] or 0)+(final_response['prev_year_purchases'] or 0)-(final_response['unsv_value'] or 0)-(final_response['dep_value'] or 0)
     return {
         "items":final_response
     }
@@ -173,28 +171,26 @@ async def edit_consolidated_item(new_item: ConsolidatedItemEdit,item_id: str,cur
         raise HTTPException(status_code=404, detail="No item Found")
     
     if new_item.property_head:
-        item_check=db.query(ConsolidatedItems).filter(ConsolidatedItems.property_head==new_item.property_head).first()
-        
+        item_check=db.query(ConsolidatedItems).filter(ConsolidatedItems.property_head==new_item.property_head, ConsolidatedItems.id!=item.id).first()
+
         if item_check:
-            raise HTTPException(status_code=402, detail="Item already Exists")
+            raise HTTPException(status_code=409, detail="Item already Exists")
         item.property_head=new_item.property_head
 
 
     if new_item.appendix:
-        item_check=db.query(ConsolidatedItems).filter(ConsolidatedItems.appendix==new_item.appendix).first()
+        item_check=db.query(ConsolidatedItems).filter(ConsolidatedItems.appendix==new_item.appendix, ConsolidatedItems.id!=item.id).first()
         update_non_expendable=db.query(NonExpendableItems).filter(NonExpendableItems.category_appendix==item.appendix).all()
-        
-        update_items=[item.to_dict() for item in update_non_expendable]
 
         if item_check:
-            raise HTTPException(status_code=402, detail="Consolidated Item Appendix already Exists")
-        
-        for item in update_items:
-            item.category_appendix=new_item.appendix
+            raise HTTPException(status_code=409, detail="Consolidated Item Appendix already Exists")
 
-        item.category_appendix=new_item.appendix
+        for ne_item in update_non_expendable:
+            ne_item.category_appendix=new_item.appendix
 
-    item.fund_details=new_item.fund_details | item.fund_details
+        item.appendix=new_item.appendix
+
+    item.fund_details=new_item.fund_details or item.fund_details
 
     db.commit()
 
@@ -204,8 +200,11 @@ async def edit_consolidated_item(new_item: ConsolidatedItemEdit,item_id: str,cur
 
 @router.delete("/delete-consolidated-item/{item_id}")
 async def delete_consolidated_item(item_id: str,current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
-    
+
     deleted_item=db.query(ConsolidatedItems).filter(ConsolidatedItems.appendix==item_id).delete(synchronize_session=False)
+
+    if not deleted_item:
+        raise HTTPException(status_code=404, detail="No item Found")
 
     db.commit()
 

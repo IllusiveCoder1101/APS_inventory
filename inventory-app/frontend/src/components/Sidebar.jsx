@@ -16,7 +16,7 @@ function Sidebar() {
 
   return (
     <aside className='sidebar'>
-        <div className='logo_holder'>
+        <div className='logo_holder' title='APS Inventory'>
             <MdOutlineInventory2 className='logo_icon'/>
         </div>
         <div className='btns_section'>

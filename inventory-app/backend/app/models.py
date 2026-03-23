@@ -27,7 +27,8 @@ class ConsolidatedItems(Base):
     unsv_value=Column(Numeric(18,2),nullable=True)
     serv_value=Column(Numeric(18,2),nullable=True)
     dep_value=Column(Numeric(18,2),nullable=True)
-    
+    remarks=Column(String, nullable=True)
+
     def to_dict(self):
         """Convert SQLAlchemy model instance to a dict."""
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}

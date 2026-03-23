@@ -36,8 +36,8 @@ function Add_Non_Expendable_GF_dialog({dialog_status,handle_add_dialog,handle_su
                 </div>
             </div>
             <div className="submit_btn_holder">
-                <button className="submit_btn_1" onClick={()=>handle_add_dialog(file)}><span>Cancel</span></button>
-                <button className="submit_btn" onClick={handle_submit}>Submit</button>
+                <button className="submit_btn_1" onClick={()=>handle_add_dialog()}><span>Cancel</span></button>
+                <button className="submit_btn" onClick={()=>handle_submit(file)}>Submit</button>
             </div>
         </div>
     </div>:<></>

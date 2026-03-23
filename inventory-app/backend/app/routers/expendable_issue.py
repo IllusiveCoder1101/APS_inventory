@@ -33,12 +33,9 @@ def item_query_params(
 async def get_expendable_issue(category_id: int,params=Depends(item_query_params),current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     query = db.query(ExpendableItemsIssue).filter(ExpendableItemsIssue.category_id==category_id)
 
-    if not query:
-        raise HTTPException(status_code=404, detail="No Items Found")
-
     if params["search"]:
         query = query.filter(
-            ExpendableItems.items.ilike(f"%{params['search']}%")
+            ExpendableItemsIssue.whom_id_issue.ilike(f"%{params['search']}%")
         )
 
     total = query.count()
@@ -61,93 +58,97 @@ async def get_expendable_issue(category_id: int,params=Depends(item_query_params
 
     
 @router.post("/create-expendable-issue/{category_id}")
-async def create_expendable_issue(payload: ExpendableIssueCreate,current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
-    item_data=payload
-    try:
-        item_check= db.query(ExpendableItems.ser_no==item_data.category_id).first()
+async def create_expendable_issue(category_id: int, payload: ExpendableIssueCreate,current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
 
-        if not item_check:
-            raise HTTPException(status_code=404, detail="No Category Found")
-        
-        if item_data["rv_iv"] and item_data["whom_id_issue"]:
-            raise HTTPException(status_code=403, detail="Invalid Data Request")
+    exp_item = db.query(ExpendableItems).filter(ExpendableItems.ser_no==category_id).first()
 
-        if item_data['qty_'] > 0:
-            item = ExpendableItemsIssue(date=item_data['date'],
-                                rv_iv=item_data['rv_iv'] or "NA",
-                                category_id=item_data['category_id'],
-                                whom_id_issue=item_data["whom_id_issue"] or "Na",
-                                qty_received=item_data['qty'] if item_data["rv_iv"] else 0,
-                                qty_issued=item_data['qty'] if item_data["whom_id_issue"] else 0)
-            
-            
-            if item_data["rv_iv"]:
-                item_check.purchase_curr_month+=item_data['qty_received']
-            else:
-                item_check.utilized_curr_month+=item_data['qty_issued']
+    if not exp_item:
+        raise HTTPException(status_code=404, detail="No Category Found")
 
+    if payload.rv_iv and payload.whom_id_issue:
+        raise HTTPException(status_code=400, detail="Invalid Data Request - cannot set both RV/IV and Whom ID Issue")
+
+    if not payload.rv_iv and not payload.whom_id_issue:
+        raise HTTPException(status_code=400, detail="Invalid Data Request - must set either RV/IV or Whom ID Issue")
+
+    if payload.qty_received > 0 or payload.qty_issued > 0:
+
+        if payload.whom_id_issue:
+            balance = exp_item.qty_prev_month + exp_item.purchase_curr_month - exp_item.utilized_curr_month
+            if balance - payload.qty_issued < 0:
+                raise HTTPException(status_code=400, detail=f"Insufficient stock. Available balance: {balance}, requested: {payload.qty_issued}")
+
+        item = ExpendableItemsIssue(
+            date=payload.date,
+            rv_iv=payload.rv_iv or "NA",
+            category_id=category_id,
+            whom_id_issue=payload.whom_id_issue or "NA",
+            qty_received=payload.qty_received if payload.rv_iv else 0,
+            qty_issued=payload.qty_issued if payload.whom_id_issue else 0,
+        )
+
+        if payload.rv_iv:
+            exp_item.purchase_curr_month += payload.qty_received
         else:
-            raise HTTPException(status_code=403, detail="Invalid Data Request")
-        
-                
-    except:
-        raise HTTPException(status_code=403, detail="Invalid Details")
+            exp_item.utilized_curr_month += payload.qty_issued
+    else:
+        raise HTTPException(status_code=400, detail="Invalid Data Request - quantity must be greater than 0")
 
     db.add(item)
     db.commit()
     db.refresh(item)
 
-
     return {
         "msg": "Issue Added"
     }
 
-@router.put("edit-expendable-issues/{item_id}")
+@router.put("/edit-expendable-issues/{item_id}")
 async def edit_expendable_issues(item_id: int ,payload:ExpendableIssueEdit, current_user=Depends(get_current_user), db: Session = Depends(get_db)) -> DefaultResponse:
 
 
     item=db.query(ExpendableItemsIssue).filter(ExpendableItemsIssue.ser_no==item_id).first()
-    exp_item=db.query(ExpendableItems).filter(ExpendableItems.ser_no==item.category_id).first()
-   
+
     if not item:
         raise HTTPException(status_code=404, detail="No Item Found")
 
-    
-    if not payload.qty_issued and not payload.qty_received:
-        raise HTTPException(status_code=403, detail="Invalid Details")
+    exp_item=db.query(ExpendableItems).filter(ExpendableItems.ser_no==item.category_id).first()
 
-    
-    elif payload.qty_issued>0:
-        if item.qty_issued==0:
-            raise HTTPException(status_code=403, detail="Invalid Details")  
+    if payload.qty_issued is None and payload.qty_received is None and not payload.rv_iv and not payload.whom_id_issue:
+        raise HTTPException(status_code=400, detail="Invalid Details - no fields provided")
+
+    if payload.qty_issued is not None and payload.qty_issued > 0:
+        if item.qty_issued == 0:
+            raise HTTPException(status_code=400, detail="Invalid Details - this issue has no issued quantity to edit")
         else:
-            if (exp_item.qty_prev_month +exp_item.purchase_curr_month-exp_item.utilized_curr_month)+item.qty_issued-payload.qty_issued>=0:
-                exp_item.utilized_curr_month-=item.qty_issued+payload.qty_issued
-                item.qty_issued=payload.qty_issued
+            balance = exp_item.qty_prev_month + exp_item.purchase_curr_month - exp_item.utilized_curr_month
+            if balance + item.qty_issued - payload.qty_issued >= 0:
+                exp_item.utilized_curr_month = exp_item.utilized_curr_month - item.qty_issued + payload.qty_issued
+                item.qty_issued = payload.qty_issued
             else:
-                raise HTTPException(status_code=403, detail="Invalid Details")
-    
-    elif payload.qty_received>0:
-        if item.qty_received==0:
-            raise HTTPException(status_code=403, detail="Invalid Details")
+                raise HTTPException(status_code=400, detail="Invalid Details - would result in negative balance")
+
+    if payload.qty_received is not None and payload.qty_received > 0:
+        if item.qty_received == 0:
+            raise HTTPException(status_code=400, detail="Invalid Details - this issue has no received quantity to edit")
         else:
-            if (exp_item.qty_prev_month +exp_item.purchase_curr_month-exp_item.utilized_curr_month)-item.qty_received+payload.qty_received>=0:
-                exp_item.purchase_curr_month-=item.qty_received+payload.qty_received
-                item.qty_received=payload.qty_received
+            balance = exp_item.qty_prev_month + exp_item.purchase_curr_month - exp_item.utilized_curr_month
+            if balance - item.qty_received + payload.qty_received >= 0:
+                exp_item.purchase_curr_month = exp_item.purchase_curr_month - item.qty_received + payload.qty_received
+                item.qty_received = payload.qty_received
             else:
-                raise HTTPException(status_code=403, detail="Invalid Details")
-    
-    elif payload.rv_iv:
-        if item.rv_iv!="Na":
-            item.rv_iv=payload.rv_iv
+                raise HTTPException(status_code=400, detail="Invalid Details - would result in negative balance")
+
+    if payload.rv_iv:
+        if item.rv_iv != "NA":
+            item.rv_iv = payload.rv_iv
         else:
-            raise HTTPException(status_code=403, detail="Invalid Details")
-    
-    elif payload.whom_id_issue:
-        if item.whom_id_issue!="Na":
-            item.whom_id_issue=payload.whom_id_issue
+            raise HTTPException(status_code=400, detail="Invalid Details - cannot edit RV/IV on an issuance record")
+
+    if payload.whom_id_issue:
+        if item.whom_id_issue != "NA":
+            item.whom_id_issue = payload.whom_id_issue
         else:
-            raise HTTPException(status_code=403, detail="Invalid Details")
+            raise HTTPException(status_code=400, detail="Invalid Details - cannot edit Whom ID on a receipt record")
     
     
     db.commit()
@@ -165,18 +166,18 @@ async def delete_expendable_issues(payload:DeleteItems, current_user=Depends(get
 
     for issue_id in item_ids:
         item_query=db.query(ExpendableItemsIssue).filter(ExpendableItemsIssue.ser_no==issue_id).first()
-        exp_item=db.query(ExpendableItems).filter(ExpendableItems.ser_no==item_query.category_id).first()
-        
+
         if not item_query:
             raise HTTPException(status_code=404, detail="No Item Found")
-        elif item_query.qty_received>0:
-            
+
+        exp_item=db.query(ExpendableItems).filter(ExpendableItems.ser_no==item_query.category_id).first()
+
+        if item_query.qty_received>0:
+
             if (exp_item.qty_prev_month +exp_item.purchase_curr_month-exp_item.utilized_curr_month)-item_query.qty_received>=0:
                 exp_item.purchase_curr_month-=item_query.qty_received
             else:
-                return {
-                    "msg":"Invalid request"
-                }
+                raise HTTPException(status_code=400, detail="Cannot delete issue: would result in negative balance")
         elif item_query.qty_issued>0:
             exp_item.utilized_curr_month-=item_query.qty_issued
         deleted_item=db.query(ExpendableItemsIssue).filter(ExpendableItemsIssue.ser_no==issue_id).delete(synchronize_session=False)

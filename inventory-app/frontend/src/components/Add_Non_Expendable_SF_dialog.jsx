@@ -1,10 +1,18 @@
-import React from 'react'
+import React ,{useState} from 'react'
 
 import { RxCrossCircled } from "react-icons/rx";
 import { PiMicrosoftExcelLogoFill } from "react-icons/pi";
 
 function Add_Non_Expendable_SF_dialog({dialog_status,handle_add_dialog,handle_submit}) {
-  return (
+
+    const [file, setFile] = useState(null);
+
+
+    const handleFileChange = (e) => {
+        setFile(e.target.files[0]);
+    };
+
+    return (
     <>
      {
 
@@ -23,20 +31,20 @@ function Add_Non_Expendable_SF_dialog({dialog_status,handle_add_dialog,handle_su
                         <h3 className='file_upload_header red-hat-display-bold'>Upload Non-Expendable (School) File</h3>
                         <p className='file_upload_text space-mono-regular'>Accepted Files: .xlsx, .xls </p>
                         <label for="excelInput" class="upload-btn">Upload File</label>
-                        <input type="file" id="excelInput" accept=".xlsx,.xls" />
+                        <input type="file" id="excelInput" accept=".xlsx,.xls"  onChange={handleFileChange}/>
                     </div>
                 </div>
             </div>
             <div className="submit_btn_holder">
                 <button className="submit_btn_1" onClick={()=>handle_add_dialog()}><span>Cancel</span></button>
-                <button className="submit_btn" onClick={handle_submit}>Submit</button>
+                <button className="submit_btn" onClick={()=>handle_submit(file)}>Submit</button>
             </div>
         </div>
     </div>:<></>
             }
-        
+
         </>
-     }   
+     }
     </>
   )
 }

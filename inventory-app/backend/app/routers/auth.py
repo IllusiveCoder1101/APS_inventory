@@ -29,7 +29,9 @@ def get_db():
 
 @router.post("/register")
 def register(data: UserCreate, db: Session = Depends(get_db)):
-    # ... email check logic
+    existing_user = db.query(User).filter(User.email == data.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
 
     access_token = create_access_token({"sub": data.email})
     refresh_token = create_refresh_token({"sub": data.email})
@@ -71,13 +73,9 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 @router.post("/refresh/{refresh_token}", response_model=Token)
 def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
 
-    # Decode refresh token
-    payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
-    logger.info(f"the payload received is {payload.get("exp")}")
-    
     try:
         payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
-        logger.info(f"the payload received is {payload.get("type")}")
+        logger.info(f"the payload received is {payload.get('type')}")
         email: str = payload.get("sub")
     except Exception:
         logger.warning("invalid attempt!")

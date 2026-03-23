@@ -1,4 +1,4 @@
-import React,{useState,useEffect} from 'react'
+import React,{useState,useEffect,useRef} from 'react'
 import Sidebar from '../components/Sidebar'
 import { IoIosSearch } from "react-icons/io";
 import { MdDelete } from "react-icons/md";
@@ -9,22 +9,25 @@ import { IoIosArrowBack, IoIosArrowForward  } from "react-icons/io";
 import Add_Expendable_Issue_dialog from '../components/Add_Expendable_Issue_dialog';
 import Edit_Expendable_Issue_dialog from '../components/Edit_Expendable_Issue_dialog';
 import Status_model from '../components/Status_model';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 function Expendable_Item() {
-    const expendable_item_id = sessionStorage.getItem("expendable_item_id")
+    const { expendableItemID } = useParams()
+    const expendable_item_id = expendableItemID
     const [expendableItem,setExpendableItem]=useState({})
     const [addDialog,setAddDialog]=useState(false)
     const [editDialog,setEditDialog]=useState(false)
     const [status,setStatus]=useState({"type":"","msg":""})
     const [issue,setIssue]=useState([])
     const [item,setItem]=useState([])
-    const [editIssue,setEditIssue]=useState({"item_id":0})
+    const [editIssue,setEditIssue]=useState({"item_id":0,"data":null})
     const [editItem,setEditItem]=useState({"items":"","remarks":""})
     const [search,setSearch]=useState("")
     const [page,setPage]=useState(1)
     const [totalPage,setTotalPage]=useState(0)
     const [error,setError]=useState(false)
+    const [loading,setLoading]=useState(true)
+    const listRef = useRef(null)
     const navigate=useNavigate()
     
     const handle_add_dialog=()=>{
@@ -63,14 +66,11 @@ function Expendable_Item() {
     const handleEdit=()=>{
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
         const payload=editItem
-        axios.put(`http://127.0.0.1:8000/expendable/edit-expendable-item/${expendable_item_id}`,JSON.stringify(payload),{headers:{"Authorization":`Bearer ${access_token}`}})
+        axios.put(`http://127.0.0.1:8000/expendable/edit-expendable-item/${expendable_item_id}`,payload,{headers:{"Authorization":`Bearer ${access_token}`,"Content-Type":"application/json"}})
             .then((data)=>{
                 if(data.status==200){
                     setStatus({"type":"success","msg":"Successfully Edited Item!"})
-                    setTimeout(()=>{
-                        setStatus({"type":"","msg":""})
-                        handleGETRequest()
-                    },2000)
+                    handleGETRequest()
                 }
             })
             .catch((error)=>{  
@@ -108,6 +108,7 @@ function Expendable_Item() {
                 if(data.status==200){
                     setExpendableItem({...data.data["items"],"final_balance":data.data["final_balance"]})
                     setEditItem({"items":data.data["items"]["items"],"unit":data.data["items"]["unit"],"remarks":data.data["items"]["remarks"]})
+                    setTimeout(()=>setLoading(false),800)
                 }
             })
             .catch((error)=>{
@@ -121,7 +122,7 @@ function Expendable_Item() {
     }
     const handleEditIssueRequest=(payload)=>{
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
-        axios.put(`http://127.0.0.1:8000/expendable-issue/edit-expendable-issue/${editIssue["item_id"]}`,JSON.stringify(payload),{headers:{"Authorization":`Bearer ${access_token}`}})
+        axios.put(`http://127.0.0.1:8000/expendable-issue/edit-expendable-issues/${editIssue["item_id"]}`,payload,{headers:{"Authorization":`Bearer ${access_token}`,"Content-Type":"application/json"}})
             .then((data)=>{
                 if(data.status==200){
                     setStatus({"type":"success","msg":"Successfully Edited Issue!"})
@@ -142,9 +143,8 @@ function Expendable_Item() {
     }
     const handleAddIssueRequest=(payload)=>{
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
-        payload["category_id"] = expendable_item_id
 
-        axios.post("http://127.0.0.1:8000/expendable-issue/create-expendable-issue",JSON.stringify(payload),{headers:{"Authorization":`Bearer ${access_token}`}})
+        axios.post(`http://127.0.0.1:8000/expendable-issue/create-expendable-issue/${expendable_item_id}`,payload,{headers:{"Authorization":`Bearer ${access_token}`,"Content-Type":"application/json"}})
             .then((data)=>{
                 if(data.status==200){
                     setStatus({"type":"success","msg":"Successfully Created Issue!"})
@@ -166,8 +166,8 @@ function Expendable_Item() {
     }
     const handleDeleteIssueRequest=()=>{
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
-        let payload=item
-        axios.delete("http://127.0.0.1:8000/expendable-issue/delete-expendable-issue",JSON.stringify(payload),{headers:{"Authorization":`Bearer ${access_token}`}})
+        let payload={"item_ids":item}
+        axios.delete("http://127.0.0.1:8000/expendable-issue/delete-expendable-issues",{data:payload,headers:{"Authorization":`Bearer ${access_token}`,"Content-Type":"application/json"}})
             .then((data)=>{
                 if(data.status==200){
                     setStatus({"type":"success","msg":"Successfully Deleted Issue!"})
@@ -186,13 +186,13 @@ function Expendable_Item() {
                 }
             })
     }
-    const handleGETIssueRequest=()=>{
+    const handleGETIssueRequest=(pg)=>{
+        const currentPage = pg || page
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
-        axios.get(`http://127.0.0.1:8000/expendable-issue/get-expendable-issue/${expendable_item_id}`,{params: { search : search || undefined , skip : page , limit : 10 ,},headers:{"Authorization":`Bearer ${access_token}`}})
+        axios.get(`http://127.0.0.1:8000/expendable-issue/get-expendable-issue/${expendable_item_id}`,{params: { search : search || undefined , skip : currentPage-1 , limit : 10 ,},headers:{"Authorization":`Bearer ${access_token}`}})
             .then((data)=>{
                 if(data.status==200){
                     setIssue(data.data.items)
-                    setPage(1)
                     setTotalPage(Math.ceil(data.data.total / data.data.limit))
                 }
             })
@@ -215,7 +215,7 @@ function Expendable_Item() {
     }
     const handlePageChange=(pg)=>{
         setPage(pg)
-        handleGETRequest()
+        handleGETIssueRequest(pg)
         listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     }
     useEffect(()=>{
@@ -230,15 +230,47 @@ function Expendable_Item() {
     },[error])
     useEffect(()=>{
         if(status["type"]){
-            setTimeout(()=>{
+            const timer = setTimeout(()=>{
                 setStatus({"type":"","msg":""})
-            },1000)
+            },2000)
+            return () => clearTimeout(timer)
         }
     },[status["type"]])
+    if(loading) return (
+    <div className='page_container_1'>
+        <Sidebar/>
+        <div className='skeleton_page'>
+            <div className='skeleton_table_section' style={{marginTop:'3em'}}>
+                <div className='skeleton_table_header'>
+                    <div className='skeleton skeleton_title'></div>
+                    <div className='skeleton skeleton_search'></div>
+                </div>
+                {[1,2].map(r=>(
+                    <div key={r} className='skeleton_detail_row'>
+                        <div className='skeleton_detail_field'><div className='skeleton skeleton_label'></div><div className='skeleton skeleton_input'></div></div>
+                        <div className='skeleton_detail_field'><div className='skeleton skeleton_label'></div><div className='skeleton skeleton_input'></div></div>
+                        <div className='skeleton_detail_field'><div className='skeleton skeleton_label'></div><div className='skeleton skeleton_input'></div></div>
+                    </div>
+                ))}
+                <div style={{marginTop:'2em',paddingTop:'1.5em',borderTop:'0.05em solid rgba(107,114,128,0.1)'}}>
+                    <div className='skeleton skeleton_title' style={{marginBottom:'1.5em'}}></div>
+                    {[1,2,3,4,5].map(r=>(
+                        <div key={r} className='skeleton_row'>
+                            <div className='skeleton skeleton_cell w10'></div>
+                            <div className='skeleton skeleton_cell w15'></div>
+                            <div className='skeleton skeleton_cell flex'></div>
+                            <div className='skeleton skeleton_cell w20'></div>
+                            <div className='skeleton skeleton_cell w15'></div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    </div>)
     return (
     <div className='page_container_1'>
         <Status_model msg={status['msg']} type={status['type']}/>
-        <Edit_Expendable_Issue_dialog dialog_status={editDialog} handle_add_dialog={handle_edit_dialog} handle_submit={handleEditIssueRequest}/>
+        <Edit_Expendable_Issue_dialog dialog_status={editDialog} handle_add_dialog={handle_edit_dialog} handle_submit={handleEditIssueRequest} editData={editIssue["data"]}/>
         <Add_Expendable_Issue_dialog dialog_status={addDialog} handle_add_dialog={handle_add_dialog} handle_submit={handleAddIssueRequest}/>
         <Sidebar/>
         <div className='main_section'>
@@ -252,35 +284,35 @@ function Expendable_Item() {
                     <div className="primary_details_section">
                         <div className="details_container">
                             <h3 className='details_name red-hat-display-regular'>Item Name</h3>
-                            <input type="text" className='details_input  space-mono-regular' placeholder='Item Name' defaultValue={editItem["items"]} onChange={(e)=>setEditItem({...editItem,"items":e.target.value})}/>
+                            <input type="text" className='details_input  space-mono-regular' placeholder='Item Name' value={editItem["items"] || ""} onChange={(e)=>setEditItem({...editItem,"items":e.target.value})}/>
                         </div>
                         <div className="details_container">
                             <h3 className='details_name red-hat-display-regular'>Ledger Balance</h3>
-                            <input type="number" disabled className='details_input  space-mono-regular' placeholder='Ledger Balance' defaultValue={expendableItem["qty_prev_month"]}/>
+                            <input type="number" disabled className='details_input  space-mono-regular' placeholder='Ledger Balance' value={expendableItem["qty_prev_month"] ?? ""}/>
                         </div>
                         <div className="details_container">
                             <h3 className='details_name red-hat-display-regular'>Unit</h3>
-                            <input type="text" className='details_input  space-mono-regular' placeholder='New Purchases' defaultValue={editItem["unit"]} onChange={(e)=>setEditItem({...editItem,"unit":e.target.value})}/>
+                            <input type="text" className='details_input  space-mono-regular' placeholder='Unit' value={editItem["unit"] || ""} onChange={(e)=>setEditItem({...editItem,"unit":e.target.value})}/>
                         </div>
                     </div>
                     <div className="secondary_details_section">
                         <div className="details_container">
                             <h3 className='details_name red-hat-display-regular'>New Purchase</h3>
-                            <input type="number" disabled className='details_input  space-mono-regular' placeholder='New Purchases' defaultValue={expendableItem["purchase_curr_month"]}/>
+                            <input type="number" disabled className='details_input  space-mono-regular' placeholder='New Purchases' value={expendableItem["purchase_curr_month"] ?? ""}/>
                         </div>
                         <div className="details_container">
                             <h3 className='details_name red-hat-display-regular'>Utilized</h3>
-                            <input type="number" disabled className='details_input space-mono-regular' placeholder='Utilized' defaultValue={expendableItem["utilized_curr_month"]}/>
+                            <input type="number" disabled className='details_input space-mono-regular' placeholder='Utilized' value={expendableItem["utilized_curr_month"] ?? ""}/>
                         </div>
                         <div className="details_container">
                             <h3 className='details_name red-hat-display-regular'>Ground Balance</h3>
-                            <input type="number" disabled className='details_input space-mono-regular' placeholder='Ground Balance' defaultValue={expendableItem["final_balance"]}/>
+                            <input type="number" disabled className='details_input space-mono-regular' placeholder='Ground Balance' value={expendableItem["final_balance"] ?? ""}/>
                         </div>
                     </div>
                     <div className="tertiary_details_section">
                         <div className="details_container_1">
                             <h3 className='details_name red-hat-display-regular'>Remarks</h3>
-                            <input type="text" className='details_input space-mono-regular' placeholder='Remarks' defaultValue={editItem["remarks"]} onChange={(e)=>setEditItem({...editItem,"remarks":e.target.value})}/>
+                            <input type="text" className='details_input space-mono-regular' placeholder='Remarks' value={editItem["remarks"] || ""} onChange={(e)=>setEditItem({...editItem,"remarks":e.target.value})}/>
                         </div>
                     </div>
                 </div>
@@ -296,18 +328,20 @@ function Expendable_Item() {
                     
                     {(issue.length>0)?<table className='table_container'>
                         <thead className='table_header'>
-                            <th className='col_heading space-mono-bold'>Ser No.</th>
-                            <th className='col_heading space-mono-bold'>Date</th>
-                            <th  className='col_heading space-mono-bold'>RV/IV</th>
-                            <th  className='col_heading space-mono-bold'>Whom ID Issue</th>
-                            <th  className='col_heading space-mono-bold'>QTY Arrived</th>
-                            <th  className='col_heading space-mono-bold'>QTY Issued</th>
-                            <th className='col_heading space-mono-bold'>Actions</th>
+                            <tr>
+                                <th className='col_heading space-mono-bold'>Ser No.</th>
+                                <th className='col_heading space-mono-bold'>Date</th>
+                                <th className='col_heading space-mono-bold'>RV/IV</th>
+                                <th className='col_heading space-mono-bold'>Whom ID Issue</th>
+                                <th className='col_heading space-mono-bold'>QTY Received</th>
+                                <th className='col_heading space-mono-bold'>QTY Issued</th>
+                                <th className='col_heading space-mono-bold'>Actions</th>
+                            </tr>
                         </thead>
                         <tbody className='table_body'>
                             {issue.map((i)=>{
                                 return (
-                                    <tr className={(item.indexOf(i["ser_no"])!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(i["ser_no"])}>
+                                    <tr key={i["ser_no"]} className={(item.indexOf(i["ser_no"])!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(i["ser_no"])}>
                                         <td className='table_data space-mono-regular'>{i["ser_no"]}</td>
                                         <td className='table_data space-mono-regular'>{i["date"]}</td>
                                         <td className='table_data space-mono-regular'>{i["rv_iv"]}</td>
@@ -316,7 +350,7 @@ function Expendable_Item() {
                                         <td className='table_data space-mono-regular'>{i["qty_issued"]}</td>
                                         <td className='table_data'>
                                             <div className='action_btn_holder'>
-                                                <button className='action_btn red-hat-display-regular' onClick={()=>{setEditIssue({"item_id":i['ser_no']});handle_edit_dialog()}}><MdEdit className='edit_icon'/></button>
+                                                <button className='action_btn red-hat-display-regular' onClick={()=>{setEditIssue({"item_id":i['ser_no'],"data":i});handle_edit_dialog()}}><MdEdit className='edit_icon'/></button>
                                             </div>
                                         </td>
                                     </tr>

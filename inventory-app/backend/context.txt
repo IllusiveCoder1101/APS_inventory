@@ -1,0 +1,63 @@
+Here's the complete context for the app:
+
+The app we are building is a inventory management app, we are trying to handle four types of items:
+consolidated items, non-expendable items ( school, gov), expendable items, and finally expendable issues . Now let me explain each item more clearly:
+
+consolidated item:
+
+Basically contains the consolidated/combined list of properties, with following data values:
+property head (name of the item), appendix (category name), fund details (details about the fund),
+Prev Year value (Total last year value of all the non-expendable items under this category name),
+Prev Year Purchases (Total last year purchases of all the non-expendable items under this category name),
+UNSV value (Total unservicable value of all the non-expendable items under this category),
+SERV value (Total servicable value of all the non-expendable items under this category),
+Dep value (Total depreciated value of all the non-expendable items under this category),
+
+Present value (Total value of all the non-expendable items under this category at present) (Not stored in db, computed when needed),
+
+Non Expendable Items:
+
+Basically contains every items present under each consolidated item category, with following data values:
+Ser no (serial number of the item),
+lp no (assigned number to the item),
+nomenclature (Name of the item),
+nonexpendable_type (type of non expendable either 'gov', 'sch')
+a_u (basically tells about the unit of the item like if its pieces , mtrs, set, box etc)
+vintage (when was this item bought)
+qty (Total qty of the item)
+rate (Rate of the item)
+qty_ledger (total ledger qty of the item)
+qty_ground (total ground qunatity of the item)
+qty_serv (Total servicable quantity of the item)
+qty_unsv (Total unservicable quantity of the item)
+dep_value (Percentage of depriciation basically stores values like if 12% -> 12 14.56% -> 14.56)
+remarks: there are threee types of remarks that could be added ( auction, destroy or used-up) followed by the qty that is auctioned , destroyed or used-up
+
+Last year bid value (computed using qty and rate) (not stored in db , computed when needed),
+serv_value (computed using rate and qty_serv) (not stored in db , computed when needed),
+unsv_value (computed using rate and qty_unsv)  (not stored in db , computed when needed),
+dep price (final price after depriciation computed using dep_value , rate and qty_serv),
+
+
+Expendable Items:
+
+ser no (Serial no of the item)
+items (name of the item)
+unit (similar as a_u)
+Qty Prev Month (Total quantity left over after last month)
+Purchase curr month (Total qty purchased this month)
+utilized curr month (total qty that is utilized in the current month)
+remarks (optional field to store any remarks)
+
+final balance (Computed using Lat month quantity, purchase curr month and utilized curr month) ( not stored in db , computed when needed)
+
+
+Expendable items issue:
+
+ser no (Serial no of the issue)
+date ( date the item was issued or purchased from a vendor )
+category_id (Expendable item category based on the ser no)
+rv_iv ( name of the vendor that sold a particular qty item to us)
+whom_id_issue (name of the person to whim a particular qty of item was issued to)
+qty_received (Total qty received from the vendor)
+qty_issued (Total qty issued to the person)

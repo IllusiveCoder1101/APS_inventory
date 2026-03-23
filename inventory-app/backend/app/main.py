@@ -1,23 +1,24 @@
 from fastapi import FastAPI, Depends
 from app.routers import auth,expendable,non_expendable, expendable_issue,consolidated, dashboard
 from app.core.security import get_current_user
-from app.logging import setup_logging
 from .database import engine
 from .models import Base
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from workers import send_monthly_email, clean_database_yearly
+from app.workers import send_monthly_email, rollover_expendable_monthly, rollover_yearly
+import logging
 
-setup_logging()
+logging.basicConfig(level=logging.INFO)
 app = FastAPI()
 scheduler = AsyncIOScheduler()
 
-# Monthly emails: 1st of every month at 00:00
-scheduler.add_job(send_monthly_email, CronTrigger(day=1, hour=0, minute=0))
+# Monthly: roll over expendable items, then send email report (1st of every month)
+scheduler.add_job(rollover_expendable_monthly, CronTrigger(day=1, hour=0, minute=0))
+scheduler.add_job(send_monthly_email, CronTrigger(day=1, hour=0, minute=5))
 
-# Yearly cleanup: Jan 1st at 00:00
-scheduler.add_job(clean_database_yearly, CronTrigger(month=1, day=1, hour=0, minute=0))
+# Yearly: roll over consolidated & non-expendable items (Jan 1st at 00:00)
+scheduler.add_job(rollover_yearly, CronTrigger(month=1, day=1, hour=0, minute=0))
 
 @app.on_event("startup")
 async def startup_event():

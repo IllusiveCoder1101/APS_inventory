@@ -2,9 +2,10 @@ import aiosmtplib
 from email.message import EmailMessage
 from jinja2 import Environment, FileSystemLoader
 from io import BytesIO
+import os
 
 # Setup Jinja2 environment
-env = Environment(loader=FileSystemLoader("templates"))
+env = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), "templates")))
 
 async def send_html_email(
     to_email: str,

@@ -21,6 +21,7 @@ function Consolidated_Items() {
     const [item,setItem]=useState([])
     const listRef = useRef(null);
 
+    const [loading,setLoading]=useState(true)
     const [totalPage,setTotalPage]=useState(0)
     
 
@@ -92,12 +93,12 @@ function Consolidated_Items() {
                         setStatus({"type":"success","msg":"Successfully Created!"})
                         setTimeout(()=>{
                             setStatus({"type":"","msg":""})
-                            handleGETRequests()
+                            handleGETRequest()
                         },1000)
                     }
                 })
                 .catch((error)=>{
-                    if(error.status==401){
+                    if(error.response?.status==401){
                         handleRefresh()
                     }
                     else{
@@ -120,13 +121,20 @@ function Consolidated_Items() {
     const handleCategory=(item)=>{
         if(selectedCategory.indexOf(item)==-1){
             setSelectedCategory([...selectedCategory,item])
-            
         }
         else{
             setSelectedCategory(selectedCategory.filter((category)=>category!=item))
         }
-        handleGETRequest()
     }
+    const isInitialMount = useRef(true)
+    useEffect(()=>{
+        if(isInitialMount.current){
+            isInitialMount.current=false
+            return
+        }
+        setPage(1)
+        handleGETRequest(1)
+    },[selectedCategory])
     const select_item=(item_id)=>{
         if(item.indexOf(item_id)!=-1){
             setItem(item.filter((item_query)=>item_query!=item_id))
@@ -136,25 +144,25 @@ function Consolidated_Items() {
         }
     }
     const handle_item_deletion=()=>{
-        
-        
+
+
         let payload={
-            "item_ids":item
+            "appendix_list":item
         }
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
-        axios.delete("http://127.0.0.1:8000/consolidated/delete-consolidated-items",JSON.stringify(payload),{headers:{"Authorization":`Bearer ${access_token}`}})
+        axios.delete("http://127.0.0.1:8000/consolidated/delete-consolidated-items",{data:payload,headers:{"Authorization":`Bearer ${access_token}`}})
             .then((data)=>{
                 if(data.status==200){
                     setStatus({"type":"success","msg":"Successfully Deleted!"})
                     setTimeout(()=>{
                         setStatus({"type":"","msg":""})
                         setItem([])
-                        handleGETRequests()
+                        handleGETRequest()
                     },1000)
                 }
             })
             .catch((error)=>{
-                if(error.status==401){
+                if(error.response?.status==401){
                     handleRefresh()
                 }
                 else{
@@ -181,6 +189,7 @@ function Consolidated_Items() {
                     "UNSV Value": i.unsv_value,
                     "SERV Value": i.serv_value,
                     "Depreciated Value": i.dep_value,
+                    "Present Value": i.present_value,
                     "Remarks": i.remarks ?? "",
                 }));
 
@@ -188,7 +197,7 @@ function Consolidated_Items() {
             }
         })
         .catch((error)=>{
-            if(error.status==401){
+            if(error.response?.status==401){
                     handleRefresh()
                 }
             else{
@@ -198,8 +207,7 @@ function Consolidated_Items() {
     
     }
 
-    const handleNavigate=(page,appendix)=>{
-        sessionStorage.setItem("consolidated_item_id",appendix)
+    const handleNavigate=(page)=>{
         navigate(page)
     }
 
@@ -219,19 +227,20 @@ function Consolidated_Items() {
                 setStatus({"type":"error","msg":"Invalid Details!"})
             })
     }
-    const handleGETRequest=()=>{
+    const handleGETRequest=(pg)=>{
+        const currentPage = pg || page
         let access_token=JSON.parse(sessionStorage.getItem("access_token"))
-        axios.get("http://127.0.0.1:8000/consolidated/get-consolidated-items",{params: { fund_details_filter: selectedCategory.length ? selectedCategory: undefined, search : search || undefined , skip : page , limit : 10 ,},headers:{"Authorization":`Bearer ${access_token}`}})
+        axios.get("http://127.0.0.1:8000/consolidated/get-consolidated-items",{params: { fund_details_filter: selectedCategory.length ? selectedCategory: undefined, search : search || undefined , skip : (currentPage - 1) * 10 , limit : 10 ,},paramsSerializer: { indexes: null },headers:{"Authorization":`Bearer ${access_token}`}})
             .then((data)=>{
                 if(data.status==200){
                     setConsolidatedItems(data.data.items)
-                    setPage(1)
                     setTotalPage(Math.ceil(data.data.total / data.data.limit))
                     setFilterValues(data.data.filter_values)
+                    setTimeout(()=>setLoading(false),800)
                 }
             })
             .catch((error)=>{
-                if(error.status==401){
+                if(error.response?.status==401){
                         handleRefresh()
                     }
                 else{
@@ -244,7 +253,7 @@ function Consolidated_Items() {
     
     const handlePageChange=(pg)=>{
         setPage(pg)
-        handleGETRequest()
+        handleGETRequest(pg)
         listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -254,6 +263,28 @@ function Consolidated_Items() {
     },[])
 
 
+    if(loading) return (
+    <div className='page_container_1'>
+        <Sidebar/>
+        <div className='skeleton_page'>
+            <div className='skeleton_table_section' style={{marginTop:'3em'}}>
+                <div className='skeleton_table_header'>
+                    <div className='skeleton skeleton_title'></div>
+                    <div className='skeleton skeleton_search'></div>
+                </div>
+                {[1,2,3,4,5,6,7,8].map(r=>(
+                    <div key={r} className='skeleton_row'>
+                        <div className='skeleton skeleton_cell w10'></div>
+                        <div className='skeleton skeleton_cell flex'></div>
+                        <div className='skeleton skeleton_cell w20'></div>
+                        <div className='skeleton skeleton_cell w20'></div>
+                        <div className='skeleton skeleton_cell w15'></div>
+                        <div className='skeleton skeleton_cell w10'></div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </div>)
     return (
     <div className='page_container_1'>
         <Status_model msg={status['msg']} type={status['type']}/>
@@ -266,7 +297,7 @@ function Consolidated_Items() {
                     <h1 className="section_title red-hat-display-bold ">Consolidated Items</h1>
                     <div className='input_holder'>
                         <IoIosSearch className='icon_1'/>
-                        <input type="text" placeholder='Search For Items' className='input_box space-mono-regular' defaultValue={search} onChange={(e)=>setSearch(e.target.value)} onKeyDown={(e) => {if (e.key === "Enter") {handleGETRequest()}}}/>
+                        <input type="text" placeholder='Search For Items' className='input_box space-mono-regular' value={search} onChange={(e)=>setSearch(e.target.value)} onKeyDown={(e) => {if (e.key === "Enter") {setPage(1);handleGETRequest(1)}}}/>
                     </div>
                     
                 </div>
@@ -290,23 +321,24 @@ function Consolidated_Items() {
                                 <th  className='col_heading space-mono-bold'>Appendix</th>
                                 <th  className='col_heading space-mono-bold'>Fund Details</th>
                                 <th  className='col_heading space-mono-bold'>Past Value</th>
-                               
+                                <th  className='col_heading space-mono-bold'>Purchases</th>
                                 <th className='col_heading space-mono-bold'>Actions</th>
                             </tr>
                         </thead>
                         <tbody className='table_body'>
                             {consolidatedItems.map((consolidated)=>{
                                 return (
-                                    <tr className={(item.indexOf(consolidated.appendix)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(consolidated.appendix)}>
+                                    <tr key={consolidated.appendix} className={(item.indexOf(consolidated.appendix)!=-1)?"table_data_container active_table_container":'table_data_container'} onClick={()=>select_item(consolidated.appendix)}>
                                         <td className='table_data space-mono-regular'>{consolidated.property_head}</td>
                                         <td className='table_data space-mono-regular'>{consolidated.appendix}</td>
                                         <td className='table_data space-mono-regular'>{consolidated.fund_details}</td>
-                                        <td className='table_data space-mono-regular'>{consolidated.prev_year_value}</td>
+                                        <td className='table_data space-mono-regular'>₹{Number(consolidated.prev_year_value).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                        <td className='table_data space-mono-regular'>₹{Number(consolidated.prev_year_purchases).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                         
                                         
                                         <td className='table_data'>
                                             <div className='action_btn_holder'>
-                                                <button className='view_btn' onClick={()=>handleNavigate(`/consolidated-items/${consolidated.appendix}`, consolidated.appendix)}>View More</button>
+                                                <button className='view_btn' onClick={()=>handleNavigate(`/consolidated-items/${consolidated.appendix}`)}>View More</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -317,7 +349,7 @@ function Consolidated_Items() {
                         <h3 className='empty_handler_text red-hat-display-bold'>No Items Found</h3>
                     </div>}
                 </div>
-                {totalPage && <div className='pagination_container'>
+                {totalPage > 0 && <div className='pagination_container'>
                     <button
                         onClick={() => handlePageChange(page - 1)}
                         disabled={page === 1}
